@@ -11,208 +11,146 @@ namespace CppRelativeIncludes
     {
         static void Main(string[] args)
         {
+            bool write_files = false;
+
             // Root folder is ROOT
             // Should we make backups of the cpp/c files that we modify ?
+            IncludeHandler includes = new IncludeHandler();
 
             // Build database of include files (*.h, *.hpp, *.inl)
             string hdr_root = @"e:\Dev.Go\src\github.com\jurgen-kluft\TRCDC\source\main\include\cdc\runtime\";
-            List<string> all_header_files = GlobAllHeaderFiles(hdr_root);
+            includes.RegisterIncludePath(hdr_root, "*.h", "*.H", "*.hpp", "*.HPP");
 
-            Dictionary<string, string> db_header_files = new Dictionary<string, string>();
-            foreach(string hdr in all_header_files)
-            {
-                string fulldbkey = MakeDbKey(hdr);
-                string[] dbkeyparts = fulldbkey.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-                string dbkey = string.Empty;
-                for (int i = dbkeyparts.Length - 1; i >= 0; --i)
-                {
-                    if (String.IsNullOrEmpty(dbkey))
-                    {
-                        dbkey = dbkeyparts[i];
-                        if (db_header_files.ContainsKey(dbkey))
-                        {
-                            // Project contains duplicate header, so make sure we are not
-                            // matching by purely the filename
-                            db_header_files.Remove(dbkey);
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        dbkey = dbkeyparts[i] + "/" + dbkey;
-                    }
-                    if (!db_header_files.ContainsKey(dbkey))
-                    {
-                        db_header_files.Add(dbkey, hdr);
-                    }
-                }
-            }
+            includes.AddFolderRename(hdr_root, "Animation", "gameAnimation");
+            includes.AddFolderRename(hdr_root, "Archive", "gameArchive");
+            includes.AddFolderRename(hdr_root, "Camera", "gameCamera");
+            includes.AddFolderRename(hdr_root, "Debug", "gameDebug");
+            includes.AddFolderRename(hdr_root, "G2", "gameG2");
+            includes.AddFolderRename(hdr_root, "Input", "gameInput");
+            includes.AddFolderRename(hdr_root, "Local", "gameLocal");
+            includes.AddFolderRename(hdr_root, "Monster", "gameMonster");
+            includes.AddFolderRename(hdr_root, "Multibody", "gameMultibody");
+            includes.AddFolderRename(hdr_root, "Objects", "gameObjects");
+            includes.AddFolderRename(hdr_root, "PC", "gamePC");
+            includes.AddFolderRename(hdr_root, "Physics", "gamePhysics");
+            includes.AddFolderRename(hdr_root, "Player", "gamePlayer");
+            includes.AddFolderRename(hdr_root, "Resolve", "gameResolve");
+            includes.AddFolderRename(hdr_root, "Scene", "gameScene");
+            includes.AddFolderRename(hdr_root, "Stream", "gameStream");
 
             // Build list of source files (*.c, *.cpp)
             string cpp_root = @"e:\Dev.Go\src\github.com\jurgen-kluft\TRCDC\source\main\cpp\cdc\runtime\";
-            List<string> all_source_files = GlobAllSourceFiles(cpp_root);
+            List<string> all_source_files = GlobAllSourceFiles(cpp_root, '/', "*.c", "*.C", "*.cpp", "*.CPP");
 
             // For every source file:
             foreach (string cppfile in all_source_files)
             {
+                Console.WriteLine("Processing source file .. \"{0}\"", cppfile);
+
                 //   Read in all lines
-                List<string> outlines = new List<string>();
-                string filepath = Path.Combine(cpp_root, cppfile);
+                string filepath = FixPath(Path.Combine(cpp_root, cppfile));
+                string basepath = FixPath(Path.GetDirectoryName(cppfile));
                 string[] lines = File.ReadAllLines(filepath);
 
-                int modifiedcnt = 0;
-                string include = "#include";
-                foreach (string l in lines)
-                {
-                    //   Analyze line for  #include "
-                    string line = l.Trim(' ');
-                    bool modified = false;
-                    if (line.StartsWith(include))
-                    {
-                        line = line.Substring(include.Length);
-                        line = line.Trim(' ');
-                        if (line.StartsWith("\""))
-                        {
-                            // Skip the '"'
-                            line = line.Substring(1);
-                            string include_hdr = line.Substring(0, line.IndexOf('"'));
-                            string relative_include_hdr;
-                            string dbkey_include_hdr = MakeDbKey(include_hdr);
-                            if (db_header_files.TryGetValue(dbkey_include_hdr, out relative_include_hdr))
-                            {
-                                line = l.Replace(include_hdr, relative_include_hdr);
-                                modified = true;
-                            }
-                            else
-                            {
-                                // Decompose the include path and try to find a header that matches
-                                string[] dbkeyparts = dbkey_include_hdr.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-                                for (int i = 0; i < dbkeyparts.Length; i++)
-                                {
-                                    string dbkey = dbkeyparts[dbkeyparts.Length - 1];
-                                    for (int j = dbkeyparts.Length - 2; j >= i; j--)
-                                    {
-                                        dbkey = dbkeyparts[j] + "/" + dbkey;
-                                    }
-                                    if (db_header_files.TryGetValue(dbkey, out relative_include_hdr))
-                                    {
-                                        line = l.Replace(include_hdr, relative_include_hdr);
-                                        modified = true;
-                                        break;
-                                    }
-                                }
-
-                                Console.WriteLine("Could not find \"{0}\" in the header db", include_hdr);
-                            }
-                        }
-                    }
-
-                    if (modified)
-                    {
-                        modifiedcnt += 1;
-                        outlines.Add(line);
-                    }
-                    else
-                    {
-                        outlines.Add(l);
-                    }
-                }
-
-                if (modifiedcnt > 0)
+                List<string> newlines;
+                if (FixIncludes(basepath, lines, includes, out newlines))
                 {
                     // Write out all lines if there where any modifications
-                    File.WriteAllLines(filepath, outlines);
+                    if (write_files)
+                    {
+                        File.WriteAllLines(filepath, newlines);
+                    }
                 }
             }
 
             // For every header file:
+            List<string> all_header_files = includes.GetAllHeaderFiles();
             foreach (string hdrfile in all_header_files)
             {
+                Console.WriteLine("Processing header file .. \"{0}\"", hdrfile);
+
                 //   Read in all lines
                 List<string> outlines = new List<string>();
-                string filepath = Path.Combine(hdr_root, hdrfile);
+                string filepath = FixPath(Path.Combine(hdr_root, hdrfile));
+                string basepath = FixPath(Path.GetDirectoryName(hdrfile));
                 string[] lines = File.ReadAllLines(filepath);
 
-                int modifiedcnt = 0;
-                string include = "#include";
-                foreach (string l in lines)
-                {
-                    //   Analyze line for  #include "
-                    string line = l.Trim(' ');
-                    bool modified = false;
-                    if (line.StartsWith(include))
-                    {
-                        line = line.Substring(include.Length);
-                        line = line.Trim(' ');
-                        if (line.StartsWith("\""))
-                        {
-                            // Skip the '"'
-                            line = line.Substring(1);
-                            string include_hdr = line.Substring(0, line.IndexOf('"'));
-                            string dbkey_include_hdr = MakeDbKey(include_hdr);
-                            string relative_include_hdr;
-                            if (db_header_files.TryGetValue(dbkey_include_hdr, out relative_include_hdr))
-                            {
-                                line = l.Replace(include_hdr, relative_include_hdr);
-                                modified = true;
-                            }
-                            else
-                            {
-                                // Decompose the include path and try to find a header that matches
-                                string[] dbkeyparts = dbkey_include_hdr.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-                                for (int i = 0; i < dbkeyparts.Length; i++)
-                                {
-                                    string dbkey = dbkeyparts[dbkeyparts.Length - 1];
-                                    for (int j = dbkeyparts.Length - 2; j >= i; j--)
-                                    {
-                                        dbkey = dbkeyparts[j] + "/" + dbkey;
-                                    }
-                                    if (db_header_files.TryGetValue(dbkey, out relative_include_hdr))
-                                    {
-                                        line = l.Replace(include_hdr, relative_include_hdr);
-                                        modified = true;
-                                        break;
-                                    }
-                                }
-
-                                Console.WriteLine("Could not find \"{0}\" in the header db", include_hdr);
-                            }
-                        }
-                    }
-
-                    if (modified)
-                    {
-                        modifiedcnt += 1;
-                        outlines.Add(line);
-                    }
-                    else
-                    {
-                        outlines.Add(l);
-                    }
-                }
-
-                if (modifiedcnt > 0)
+                List<string> newlines;
+                if (FixIncludes(basepath, lines, includes, out newlines))
                 {
                     // Write out all lines if there where any modifications
-                    File.WriteAllLines(filepath, outlines);
+                    if (write_files)
+                    {
+                        File.WriteAllLines(filepath, newlines);
+                    }
                 }
             }
 
             // REPORT
             // Report any header files that could not be detected
         }
+        
+        // File being process can have it's own base-path:
+        // Example:
+        //  - Physics/Broadphase.cpp
+        //    If this file has the following includes:
+        //    - #include "Broadphase.h"
+        //    - #include "Collision.h"
+        //
+        // Where "Collision.h" also exists in the root, we need to actually get the "Collision.h" that exists in his own folder.
 
-
-        static string FixSlashes(string filepath)
+        static bool FixIncludes(string basepath, string[] lines, IncludeHandler includes, out List<string> outlines)
         {
-            filepath = filepath.Replace('\\', '/');
-            return filepath;
-        }
+            outlines = new List<string>();
 
-        static string MakeDbKey(string str)
-        {
-            str = str.ToLower().Replace('\\', '/');
-            return str;
+            string include = "#include";
+            int number_of_modified_lines = 0;
+
+            foreach (string original_line in lines)
+            {
+                //   Analyze line for  #include "
+                bool line_is_modified = false;
+                string modified_line = original_line;
+
+                string line = original_line.Trim(' ');
+                if (line.StartsWith(include))
+                {
+                    line = line.Substring(include.Length);
+                    line = line.Trim(' ');
+                    if (line.StartsWith("\""))
+                    {
+                        // Skip the '"'
+                        line = line.Substring(1);
+                        string include_hdr = line.Substring(0, line.IndexOf('"'));
+                        string relative_include_hdr;
+                        if (includes.FindInclude(basepath, include_hdr, out relative_include_hdr))
+                        {
+                            const bool ignoreCase = true;
+                            line_is_modified = String.Compare(FixPath(include_hdr), FixPath(relative_include_hdr), ignoreCase) != 0;
+                            if (line_is_modified)
+                            {
+                                modified_line = original_line.Replace(include_hdr, relative_include_hdr);
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Could not find matching include for \"{0}\".", include_hdr);
+                        }
+                    }
+                }
+
+                if (line_is_modified)
+                {
+                    number_of_modified_lines += 1;
+                    outlines.Add(modified_line);
+                }
+                else
+                {
+                    outlines.Add(original_line);
+                }
+            }
+
+            return number_of_modified_lines > 0;
         }
 
         static string MakeRelative(string root, string filepath)
@@ -221,43 +159,37 @@ namespace CppRelativeIncludes
             return filepath;
         }
 
-        static List<string> GlobAllHeaderFiles(string root)
+        static char OtherPathSeperator(char path_seperator)
         {
-            var rootdirinfo = new DirectoryInfo(root);
-
-            List<string> all = new List<string>();
-            var globbed = rootdirinfo.GlobFiles("**/*.h");
-            foreach (FileInfo fi in globbed)
+            switch (path_seperator)
             {
-                all.Add(MakeRelative(root, fi.FullName));
+                case '/': return '\\';
+                case '\\': return '/';
             }
-            globbed = rootdirinfo.GlobFiles("**/*.H");
-            foreach (FileInfo fi in globbed)
-            {
-                all.Add(MakeRelative(root, fi.FullName));
-            }
-            globbed = rootdirinfo.GlobFiles("**/*.hpp");
-            foreach (FileInfo fi in globbed)
-            {
-                all.Add(MakeRelative(root, fi.FullName));
-            }
-            return all;
+            return path_seperator;
+        }
+        static private string FixPath(string filepath)
+        {
+            filepath = filepath.Replace('\\', '/');
+            return filepath;
         }
 
-        static List<string> GlobAllSourceFiles(string root)
+        static List<string> GlobAllSourceFiles(string root, char path_seperator, params string[] extensions)
         {
             var rootdirinfo = new DirectoryInfo(root);
+            char old_path_seperator = OtherPathSeperator(path_seperator);
 
             List<string> all = new List<string>();
-            var globbed = rootdirinfo.GlobFiles("**/*.c");
-            foreach (FileInfo fi in globbed)
+            foreach (string ext in extensions)
             {
-                all.Add(MakeRelative(root, fi.FullName));
-            }
-            globbed = rootdirinfo.GlobFiles("**/*.cpp");
-            foreach (FileInfo fi in globbed)
-            {
-                all.Add(MakeRelative(root, fi.FullName));
+                var globbed = rootdirinfo.GlobFiles("**/" + ext);
+                foreach (FileInfo fi in globbed)
+                {
+                    string filepath = MakeRelative(root, fi.FullName);
+                    filepath = filepath.Replace(old_path_seperator, path_seperator);
+                    filepath = FixPath(filepath);
+                    all.Add(filepath);
+                }
             }
             return all;
         }

@@ -42,6 +42,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FindInclude.cs" />
     <Compile Include="Glob\Glob.cs" />
     <Compile Include="Glob\GlobExtensions.cs" />
     <Compile Include="Glob\GlobNode.cs" />
