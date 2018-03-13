@@ -15,28 +15,45 @@ namespace CppRelativeIncludes
 
             // Root folder is ROOT
             // Should we make backups of the cpp/c files that we modify ?
-            IncludeHandler includes = new IncludeHandler();
+            IncludeFixer includefixer = new IncludeFixer();
+
+            // The order of registration does matter, includes are search in this order
+            string dx9_root = @"e:\trae\cdc\3rdparty\DX9SDK\include\";
+            includefixer.RegisterIncludePathAsReadonly(dx9_root, "*.h", "*.H", "*.hpp", "*.HPP");
 
             // Build database of include files (*.h, *.hpp, *.inl)
-            string hdr_root = @"e:\Dev.Go\src\github.com\jurgen-kluft\TRCDC\source\main\include\cdc\runtime\";
-            includes.RegisterIncludePath(hdr_root, "*.h", "*.H", "*.hpp", "*.HPP");
+            string cdc_root = @"e:\Dev.Go\src\github.com\jurgen-kluft\TRCDC\source\main\include\cdc\runtime\";
+            includefixer.RegisterIncludePath(cdc_root, "*.h", "*.H", "*.hpp", "*.HPP");
 
-            includes.AddFolderRename(hdr_root, "Animation", "gameAnimation");
-            includes.AddFolderRename(hdr_root, "Archive", "gameArchive");
-            includes.AddFolderRename(hdr_root, "Camera", "gameCamera");
-            includes.AddFolderRename(hdr_root, "Debug", "gameDebug");
-            includes.AddFolderRename(hdr_root, "G2", "gameG2");
-            includes.AddFolderRename(hdr_root, "Input", "gameInput");
-            includes.AddFolderRename(hdr_root, "Local", "gameLocal");
-            includes.AddFolderRename(hdr_root, "Monster", "gameMonster");
-            includes.AddFolderRename(hdr_root, "Multibody", "gameMultibody");
-            includes.AddFolderRename(hdr_root, "Objects", "gameObjects");
-            includes.AddFolderRename(hdr_root, "PC", "gamePC");
-            includes.AddFolderRename(hdr_root, "Physics", "gamePhysics");
-            includes.AddFolderRename(hdr_root, "Player", "gamePlayer");
-            includes.AddFolderRename(hdr_root, "Resolve", "gameResolve");
-            includes.AddFolderRename(hdr_root, "Scene", "gameScene");
-            includes.AddFolderRename(hdr_root, "Stream", "gameStream");
+            bool rename_ok = includefixer.AddFileRename(cdc_root, "cdcMath/math.h", "cdcMath/sysMath.h");
+
+            string game_root = @"e:\Dev.Go\src\github.com\jurgen-kluft\TRCDC\source\main\include\game\";
+            includefixer.RegisterIncludePath(game_root, "*.h", "*.H", "*.hpp", "*.HPP");
+            includefixer.AddFolderRename(game_root, "Animation", "gameAnimation");
+            includefixer.AddFolderRename(game_root, "Archive", "gameArchive");
+            includefixer.AddFolderRename(game_root, "Camera", "gameCamera");
+            includefixer.AddFolderRename(game_root, "Debug", "gameDebug");
+            includefixer.AddFolderRename(game_root, "enemy", "gameEnemy");
+            includefixer.AddFolderRename(game_root, "G2", "gameG2");
+            includefixer.AddFolderRename(game_root, "Input", "gameInput");
+            includefixer.AddFolderRename(game_root, "Local", "gameLocal");
+            includefixer.AddFolderRename(game_root, "Monster", "gameMonster");
+            includefixer.AddFolderRename(game_root, "Multibody", "gameMultibody");
+            includefixer.AddFolderRename(game_root, "Objects", "gameObjects");
+            includefixer.AddFolderRename(game_root, "PC", "gamePC");
+            includefixer.AddFolderRename(game_root, "Physics", "gamePhysics");
+            includefixer.AddFolderRename(game_root, "Player", "gamePlayer");
+            includefixer.AddFolderRename(game_root, "Resolve", "gameResolve");
+            includefixer.AddFolderRename(game_root, "Scene", "gameScene");
+            includefixer.AddFolderRename(game_root, "Stream", "gameStream");
+            includefixer.AddFolderRename(game_root, "menu", "gameMenu");
+            includefixer.AddFolderRename(game_root, "padshock", "gamePadshock");
+            includefixer.AddFolderRename(game_root, "ReaverGUI", "gameReaverGUI");
+            includefixer.AddFolderRename(game_root, "Save", "gameSave");
+            includefixer.AddFolderRename(game_root, "script", "gameScript");
+            includefixer.AddFolderRename(game_root, "sound", "gameSound");
+            includefixer.AddFolderRename(game_root, "VehicleSection", "gameVehicleSection");
+            includefixer.AddFolderRename(game_root, "WorldRep", "gameWorldRep");
 
             // Build list of source files (*.c, *.cpp)
             string cpp_root = @"e:\Dev.Go\src\github.com\jurgen-kluft\TRCDC\source\main\cpp\cdc\runtime\";
@@ -53,7 +70,7 @@ namespace CppRelativeIncludes
                 string[] lines = File.ReadAllLines(filepath);
 
                 List<string> newlines;
-                if (FixIncludes(basepath, lines, includes, out newlines))
+                if (FixIncludes(basepath, lines, includefixer, out newlines))
                 {
                     // Write out all lines if there where any modifications
                     if (write_files)
@@ -63,20 +80,27 @@ namespace CppRelativeIncludes
                 }
             }
 
-            // For every header file:
-            List<string> all_header_files = includes.GetAllHeaderFiles();
-            foreach (string hdrfile in all_header_files)
+            // For every header file that is not read-only:
+            List<KeyValuePair<string, string>> all_header_files = new List<KeyValuePair<string, string>>();
+            Action<string, string, bool> collector = delegate (string rootpath, string relative_filepath, bool isreadonly)
             {
-                Console.WriteLine("Processing header file .. \"{0}\"", hdrfile);
+                if (!isreadonly)
+                    all_header_files.Add(new KeyValuePair<string, string>(rootpath, relative_filepath));
+            };
+            includefixer.GetAllHeaderFilesToFix(collector);
+
+            foreach (KeyValuePair<string,string> hdrfile in all_header_files)
+            {
+                Console.WriteLine("Processing header file .. \"{0}\"", hdrfile.Value);
 
                 //   Read in all lines
                 List<string> outlines = new List<string>();
-                string filepath = FixPath(Path.Combine(hdr_root, hdrfile));
-                string basepath = FixPath(Path.GetDirectoryName(hdrfile));
+                string filepath = FixPath(Path.Combine(hdrfile.Key, hdrfile.Value));
+                string basepath = FixPath(Path.GetDirectoryName(hdrfile.Value));
                 string[] lines = File.ReadAllLines(filepath);
 
                 List<string> newlines;
-                if (FixIncludes(basepath, lines, includes, out newlines))
+                if (FixIncludes(basepath, lines, includefixer, out newlines))
                 {
                     // Write out all lines if there where any modifications
                     if (write_files)
@@ -89,7 +113,7 @@ namespace CppRelativeIncludes
             // REPORT
             // Report any header files that could not be detected
         }
-        
+
         // File being process can have it's own base-path:
         // Example:
         //  - Physics/Broadphase.cpp
@@ -99,7 +123,7 @@ namespace CppRelativeIncludes
         //
         // Where "Collision.h" also exists in the root, we need to actually get the "Collision.h" that exists in his own folder.
 
-        static bool FixIncludes(string basepath, string[] lines, IncludeHandler includes, out List<string> outlines)
+        static bool FixIncludes(string basepath, string[] lines, IncludeFixer includes, out List<string> outlines)
         {
             outlines = new List<string>();
 

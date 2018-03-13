@@ -5,7 +5,7 @@ using Glob;
 
 namespace CppRelativeIncludes
 {
-    public class IncludeHandler
+    public class IncludeFixer
     {
         // Example:
         // List<string> header_files = GlobFiles(Path.Combine(rootpath, "game"), "*.h *.hpp");
@@ -13,8 +13,10 @@ namespace CppRelativeIncludes
         protected class IncludeDirectory
         {
             public string IncludePath { get; set; }
+            public bool IsReadonly { get; set; }
             public List<string> HeaderFiles { get; set; }
             public HeaderIncludeTree HeaderIncludeTree { get; set; }
+            public Dictionary<string, List<string>> HeaderFilenameDB { get; set; }
         }
         protected class HeaderIncludeTree
         {
@@ -22,15 +24,17 @@ namespace CppRelativeIncludes
             {
                 FolderName = foldername;
                 OldFolderNames = new List<string>();
-                HeaderFilenames = new List<string>();
-                HeaderFilepaths= new List<string>();
+                Filenames = new List<string>();
+                OldFilenames = new List<string>();
+                Filepaths = new List<string>();
                 SubFolders = new List<HeaderIncludeTree>();
             }
 
             public string FolderName { get; set; }
             public List<string> OldFolderNames { get; set; }
-            public List<string> HeaderFilenames { get; set; }
-            public List<string> HeaderFilepaths { get; set; }
+            public List<string> Filenames { get; set; }
+            public List<string> OldFilenames { get; set; }
+            public List<string> Filepaths { get; set; }
             public List<HeaderIncludeTree> SubFolders { get; set; }
 
             private static bool AreFoldernamesEqual(string foldername, string other_foldername)
@@ -77,8 +81,8 @@ namespace CppRelativeIncludes
                 if (headerinclude.Count == 0)
                 {
                     string filename = part;
-                    HeaderFilenames.Add(filename);
-                    HeaderFilepaths.Add(fullheaderinclude);
+                    Filenames.Add(filename);
+                    Filepaths.Add(fullheaderinclude);
                     return true;
                 }
                 else
@@ -94,24 +98,24 @@ namespace CppRelativeIncludes
                 }
             }
 
-            public static void AddHeaderFile(HeaderIncludeTree tree, string headerfilepath)
+            public static void AddHeaderFile(HeaderIncludeTree tree, string headerfilepath, string store_headerfilepath)
             {
                 Stack<string> headerinclude_stack = new Stack<string>();
                 string[] headerinclude_parts = headerfilepath.Split('/');
                 int n = headerinclude_parts.Length;
                 for (int i=n-1; i>=0; --i)
                     headerinclude_stack.Push(headerinclude_parts[i]);
-                tree.AddHeaderFile(headerinclude_stack, headerfilepath);
+                tree.AddHeaderFile(headerinclude_stack, store_headerfilepath);
             }
 
             private bool TryGetFilename(string headerfilename, out string corrected_headerfilename)
             {
                 int index = 0;
-                foreach (string filename in HeaderFilenames)
+                foreach (string filename in Filenames)
                 {
                     if (AreFilenamesEqual(headerfilename, filename))
                     {
-                        corrected_headerfilename = HeaderFilepaths[index];
+                        corrected_headerfilename = Filepaths[index];
                         return true;
                     }
                     index += 1;
@@ -133,16 +137,14 @@ namespace CppRelativeIncludes
                 return false;
             }
 
-            private bool FindIncludeFile(Stack<string> headerinclude, Stack<string> corrected_headerinclude_stack)
+            private bool FindIncludeFile(Stack<string> headerinclude, out string corrected_headerinclude)
             {
                 string part = headerinclude.Pop();
                 if (headerinclude.Count == 0)
                 {
                     string filename = part;
-                    string corrected_headerinclude;
                     if (TryGetFilename(filename, out corrected_headerinclude))
                     {
-                        corrected_headerinclude_stack.Push(filename);
                         return true;
                     }
                     return false;
@@ -153,10 +155,10 @@ namespace CppRelativeIncludes
                     HeaderIncludeTree folder;
                     if (TryGetFolder(foldername, out folder))
                     {
-                        corrected_headerinclude_stack.Push(foldername);
-                        return folder.FindIncludeFile(headerinclude, corrected_headerinclude_stack);
+                        return folder.FindIncludeFile(headerinclude, out corrected_headerinclude);
                     }
                 }
+                corrected_headerinclude = string.Empty;
                 return false;
             }
 
@@ -169,14 +171,8 @@ namespace CppRelativeIncludes
                     headerinclude_stack.Push(headerinclude_parts[i]);
 
                 corrected_headerinclude = string.Empty;
-                Stack<string> corrected_headerinclude_stack = new Stack<string>();
-                if (tree.FindIncludeFile(headerinclude_stack, corrected_headerinclude_stack))
+                if (tree.FindIncludeFile(headerinclude_stack, out corrected_headerinclude))
                 {
-                    while (corrected_headerinclude_stack.Count > 0)
-                    {
-                        string part = corrected_headerinclude_stack.Pop();
-                        corrected_headerinclude = Path.Combine(part, corrected_headerinclude);
-                    }
                     return true;
                 }
                 return false;
@@ -185,7 +181,7 @@ namespace CppRelativeIncludes
 
         List<IncludeDirectory> mIncludes;
 
-        public IncludeHandler()
+        public IncludeFixer()
         {
             mIncludes = new List<IncludeDirectory>();
             PathSeperator = '/';
@@ -193,40 +189,89 @@ namespace CppRelativeIncludes
 
         public char PathSeperator { get; set; }
 
-        private void AddIncludePath(string includepath, HeaderIncludeTree headerfiletree, List<string> headerfiles)
+        private IncludeDirectory AddIncludePath(string includepath, List<string> headerfiles, HeaderIncludeTree headerfiletree, Dictionary<string, List<string>> headerFilenameDB)
         {
-            IncludeDirectory id = new IncludeDirectory() { IncludePath = includepath, HeaderIncludeTree = headerfiletree, HeaderFiles = headerfiles };
+            IncludeDirectory id = new IncludeDirectory() {
+                IncludePath = includepath,
+                HeaderFiles = headerfiles,
+                HeaderIncludeTree = headerfiletree,
+                HeaderFilenameDB = headerFilenameDB
+            };
             mIncludes.Add(id);
+            return id;
+        }
+        public bool AddFileRename(string includepath, string old, string current)
+        {
+            foreach (IncludeDirectory dir in mIncludes)
+            {
+                if (dir.IncludePath == includepath)
+                {
+                    string stored;
+                    if (HeaderIncludeTree.FindIncludeFile(dir.HeaderIncludeTree, current, out stored))
+                    {
+                        if (!HeaderIncludeTree.FindIncludeFile(dir.HeaderIncludeTree, old, out stored))
+                        {
+                            // OK, current exists in the tree, which is correct, and old does not exist in the tree.
+                            HeaderIncludeTree.AddHeaderFile(dir.HeaderIncludeTree, old, current);
+                            return true;
+                        }
+                    }
+                    break;
+                }
+            }
+            return false;
         }
 
         public void AddFolderRename(string includepath, string original, string renamed)
         {
-
-            string[] original_parts = FixPath(original).Split(PathSeperator);
-            string[] renamed_parts = FixPath(renamed).Split(PathSeperator);
-
             foreach(IncludeDirectory dir in mIncludes)
             {
                 if (dir.IncludePath == includepath)
                 {
-                    HeaderIncludeTree headertree = dir.HeaderIncludeTree;
+                    string[] original_parts = FixPath(original).Split(PathSeperator);
+                    string[] renamed_parts = FixPath(renamed).Split(PathSeperator);
+
+                    HeaderIncludeTree headertree;
+
+                    // Traverse down the include tree folder by folder
+
+                    // Find 'original' and get 'renamed'
+                    headertree = dir.HeaderIncludeTree;
                     for (int i = 0; i < original_parts.Length && i < renamed_parts.Length; ++i)
                     {
                         headertree = headertree.AddFolderRename(original_parts[i], renamed_parts[i]);
+                    }
+
+                    // Find 'renamed' and get 'renamed'
+                    headertree = dir.HeaderIncludeTree;
+                    for (int i = 0; i < original_parts.Length && i < renamed_parts.Length; ++i)
+                    {
+                        headertree = headertree.AddFolderRename(renamed_parts[i], original_parts[i]);
                     }
                     break;
                 }
             }
         }
 
+        public void RegisterIncludePathAsReadonly(string includepath, params string[] headerfile_extensions)
+        {
+            IncludeDirectory id = ProcessIncludePath(includepath, headerfile_extensions);
+            id.IsReadonly = true;
+        }
+
         public void RegisterIncludePath(string includepath, params string[] headerfile_extensions)
         {
             // Glob header files
+            ProcessIncludePath(includepath, headerfile_extensions);
+        }
+
+        private IncludeDirectory ProcessIncludePath(string includepath, params string[] file_extensions)
+        {
             var rootdirinfo = new DirectoryInfo(includepath);
             char old_path_seperator = OtherPathSeperator(PathSeperator);
 
             List<string> headerfiles = new List<string>();
-            foreach (string extension in headerfile_extensions)
+            foreach (string extension in file_extensions)
             {
                 var globbed = rootdirinfo.GlobFiles("**/" + extension);
                 foreach (FileInfo fi in globbed)
@@ -237,13 +282,23 @@ namespace CppRelativeIncludes
                 }
             }
 
+            Dictionary<string, List<string>> headerincludedb = new Dictionary<string, List<string>>();
             HeaderIncludeTree headerincludetree = new HeaderIncludeTree(includepath);
             foreach (string hdr in headerfiles)
             {
-                HeaderIncludeTree.AddHeaderFile(headerincludetree, hdr);
+                HeaderIncludeTree.AddHeaderFile(headerincludetree, hdr, hdr);
+
+                string dbkey = AsDictionaryKey(Path.GetFileName(hdr));
+                List<string> filepaths = new List<string>();
+                if (!headerincludedb.TryGetValue(dbkey, out filepaths))
+                {
+                    filepaths = new List<string>();
+                    headerincludedb.Add(dbkey, filepaths);
+                }
+                filepaths.Add(hdr);
             }
 
-            AddIncludePath(includepath, headerincludetree, headerfiles);
+            return AddIncludePath(includepath, headerfiles, headerincludetree, headerincludedb);
         }
 
         private List<string> GetRenamesOf(string hdr)
@@ -255,14 +310,16 @@ namespace CppRelativeIncludes
         }
 
 
-        public List<string> GetAllHeaderFiles()
+        public void GetAllHeaderFilesToFix(Action<string, string, bool> collect)
         {
             List<string> hdrfiles = new List<string>();
             foreach (IncludeDirectory include in mIncludes)
             {
-                hdrfiles.AddRange(include.HeaderFiles);
+                foreach (string hdr in include.HeaderFiles)
+                {
+                    collect(include.IncludePath, hdr, include.IsReadonly);
+                }
             }
-            return hdrfiles;
         }
 
         public bool FindInclude(string currentpath, string headerinclude, out string resulting_headerinclude)
@@ -287,6 +344,18 @@ namespace CppRelativeIncludes
                 if (HeaderIncludeTree.FindIncludeFile(include.HeaderIncludeTree, current_headerinclude, out resulting_headerinclude))
                 {
                     resulting_headerinclude = FixPath(resulting_headerinclude);
+                    return true;
+                }
+            }
+
+            //   3) Find the header file by name to 
+            current_headerinclude = AsDictionaryKey(Path.GetFileName(headerinclude));
+            foreach (IncludeDirectory include in mIncludes)
+            {
+                List<string> candidates;
+                if (include.HeaderFilenameDB.TryGetValue(current_headerinclude, out candidates))
+                {
+                    resulting_headerinclude = FixPath(candidates[0]);
                     return true;
                 }
             }
