@@ -253,16 +253,11 @@ namespace CppRelativeIncludes
             }
         }
 
-        public void RegisterIncludePathAsReadonly(string includepath, params string[] headerfile_extensions)
-        {
-            IncludeDirectory id = ProcessIncludePath(includepath, headerfile_extensions);
-            id.IsReadonly = true;
-        }
-
-        public void RegisterIncludePath(string includepath, params string[] headerfile_extensions)
+        public void RegisterIncludePath(string includepath, bool isreadonly, string[] headerfile_extensions)
         {
             // Glob header files
-            ProcessIncludePath(includepath, headerfile_extensions);
+            IncludeDirectory id = ProcessIncludePath(includepath, headerfile_extensions);
+            id.IsReadonly = isreadonly;
         }
 
         private IncludeDirectory ProcessIncludePath(string includepath, params string[] file_extensions)

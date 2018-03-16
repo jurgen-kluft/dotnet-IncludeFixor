@@ -9,68 +9,58 @@ namespace CppRelativeIncludes
 {
     class Program
     {
+        // C++ include fixor:
+        // Follows standard C/C++ include mechanism
+        // User can register folder renames (after the actual physical rename, this script will not rename your files or folders)
+        // User can register file renames (after the actual physical rename)
+        // 
+        static bool Verbose { get; set; }
+
         static void Main(string[] args)
         {
-            bool write_files = false;
+            bool write_files = true;
+            Verbose = true;
 
             // Root folder is ROOT
             // Should we make backups of the cpp/c files that we modify ?
             IncludeFixer includefixer = new IncludeFixer();
 
-            // The order of registration does matter, includes are search in this order
-            string dx9_root = @"e:\trae\cdc\3rdparty\DX9SDK\include\";
-            includefixer.RegisterIncludePathAsReadonly(dx9_root, "*.h", "*.H", "*.hpp", "*.HPP");
+            // Read the configuration
+            Config config = Config.Read(args[0]);
 
-            // Build database of include files (*.h, *.hpp, *.inl)
-            string cdc_root = @"e:\Dev.Go\src\github.com\jurgen-kluft\TRCDC\source\main\include\cdc\runtime\";
-            includefixer.RegisterIncludePath(cdc_root, "*.h", "*.H", "*.hpp", "*.HPP");
+            foreach (Include inc in config.Includes)
+            {
+                string path = inc.Path;
+                includefixer.RegisterIncludePath(inc.Name, inc.ReadOnly, inc.Extensions);
 
-            bool rename_ok = includefixer.AddFileRename(cdc_root, "cdcMath/math.h", "cdcMath/sysMath.h");
-
-            string game_root = @"e:\Dev.Go\src\github.com\jurgen-kluft\TRCDC\source\main\include\game\";
-            includefixer.RegisterIncludePath(game_root, "*.h", "*.H", "*.hpp", "*.HPP");
-            includefixer.AddFolderRename(game_root, "Animation", "gameAnimation");
-            includefixer.AddFolderRename(game_root, "Archive", "gameArchive");
-            includefixer.AddFolderRename(game_root, "Camera", "gameCamera");
-            includefixer.AddFolderRename(game_root, "Debug", "gameDebug");
-            includefixer.AddFolderRename(game_root, "enemy", "gameEnemy");
-            includefixer.AddFolderRename(game_root, "G2", "gameG2");
-            includefixer.AddFolderRename(game_root, "Input", "gameInput");
-            includefixer.AddFolderRename(game_root, "Local", "gameLocal");
-            includefixer.AddFolderRename(game_root, "Monster", "gameMonster");
-            includefixer.AddFolderRename(game_root, "Multibody", "gameMultibody");
-            includefixer.AddFolderRename(game_root, "Objects", "gameObjects");
-            includefixer.AddFolderRename(game_root, "PC", "gamePC");
-            includefixer.AddFolderRename(game_root, "Physics", "gamePhysics");
-            includefixer.AddFolderRename(game_root, "Player", "gamePlayer");
-            includefixer.AddFolderRename(game_root, "Resolve", "gameResolve");
-            includefixer.AddFolderRename(game_root, "Scene", "gameScene");
-            includefixer.AddFolderRename(game_root, "Stream", "gameStream");
-            includefixer.AddFolderRename(game_root, "menu", "gameMenu");
-            includefixer.AddFolderRename(game_root, "padshock", "gamePadshock");
-            includefixer.AddFolderRename(game_root, "ReaverGUI", "gameReaverGUI");
-            includefixer.AddFolderRename(game_root, "Save", "gameSave");
-            includefixer.AddFolderRename(game_root, "script", "gameScript");
-            includefixer.AddFolderRename(game_root, "sound", "gameSound");
-            includefixer.AddFolderRename(game_root, "VehicleSection", "gameVehicleSection");
-            includefixer.AddFolderRename(game_root, "WorldRep", "gameWorldRep");
+                foreach (Rename rn in inc.FileRenames)
+                    includefixer.AddFileRename(inc.Name, rn.From, rn.To);
+                foreach (Rename rn in inc.FolderRenames)
+                    includefixer.AddFolderRename(inc.Name, rn.From, rn.To);
+            }
 
             // Build list of source files (*.c, *.cpp)
-            string cpp_root = @"e:\Dev.Go\src\github.com\jurgen-kluft\TRCDC\source\main\cpp\cdc\runtime\";
-            List<string> all_source_files = GlobAllSourceFiles(cpp_root, '/', "*.c", "*.C", "*.cpp", "*.CPP");
+            List<KeyValuePair<string, string>> all_source_files = new List<KeyValuePair<string, string>>();
+            foreach (Source src in config.Sources)
+            {
+                GlobAllSourceFiles(src.Name, config.Settings.PathSeparator, all_source_files, src.Extensions);
+            }
 
             // For every source file:
-            foreach (string cppfile in all_source_files)
+            foreach (KeyValuePair<string, string> cppfile in all_source_files)
             {
-                Console.WriteLine("Processing source file .. \"{0}\"", cppfile);
+                if (Verbose)
+                {
+                    Console.WriteLine("Processing source file .. \"{0}\"", cppfile.Value);
+                }
 
                 //   Read in all lines
-                string filepath = FixPath(Path.Combine(cpp_root, cppfile));
-                string basepath = FixPath(Path.GetDirectoryName(cppfile));
+                string filepath = FixPath(Path.Combine(cppfile.Key, cppfile.Value));
+                string basepath = FixPath(Path.GetDirectoryName(cppfile.Value));
                 string[] lines = File.ReadAllLines(filepath);
 
                 List<string> newlines;
-                if (FixIncludes(basepath, lines, includefixer, out newlines))
+                if (FixIncludes(basepath, cppfile.Value, lines, includefixer, out newlines))
                 {
                     // Write out all lines if there where any modifications
                     if (write_files)
@@ -91,7 +81,10 @@ namespace CppRelativeIncludes
 
             foreach (KeyValuePair<string,string> hdrfile in all_header_files)
             {
-                Console.WriteLine("Processing header file .. \"{0}\"", hdrfile.Value);
+                if (Verbose)
+                {
+                    Console.WriteLine("Processing header file .. \"{0}\"", hdrfile.Value);
+                }
 
                 //   Read in all lines
                 List<string> outlines = new List<string>();
@@ -100,7 +93,7 @@ namespace CppRelativeIncludes
                 string[] lines = File.ReadAllLines(filepath);
 
                 List<string> newlines;
-                if (FixIncludes(basepath, lines, includefixer, out newlines))
+                if (FixIncludes(basepath, hdrfile.Value, lines, includefixer, out newlines))
                 {
                     // Write out all lines if there where any modifications
                     if (write_files)
@@ -123,12 +116,13 @@ namespace CppRelativeIncludes
         //
         // Where "Collision.h" also exists in the root, we need to actually get the "Collision.h" that exists in his own folder.
 
-        static bool FixIncludes(string basepath, string[] lines, IncludeFixer includes, out List<string> outlines)
+        static bool FixIncludes(string basepath, string filename, string[] lines, IncludeFixer includes, out List<string> outlines)
         {
             outlines = new List<string>();
 
             string include = "#include";
             int number_of_modified_lines = 0;
+            int line_number = 0;
 
             foreach (string original_line in lines)
             {
@@ -154,11 +148,15 @@ namespace CppRelativeIncludes
                             if (line_is_modified)
                             {
                                 modified_line = original_line.Replace(include_hdr, relative_include_hdr);
+                                if (Verbose)
+                                {
+                                    Console.WriteLine("    file:\"{0}\", line({1}): \"{2}\" into \"{3}\".", filename, line_number, original_line, modified_line);
+                                }
                             }
                         }
                         else
                         {
-                            Console.WriteLine("Could not find matching include for \"{0}\".", include_hdr);
+                            Console.WriteLine("    Warning: file:\"{0}\", line({1}): Could not find matching include for \"{2}\".", filename, line_number, include_hdr);
                         }
                     }
                 }
@@ -172,6 +170,8 @@ namespace CppRelativeIncludes
                 {
                     outlines.Add(original_line);
                 }
+
+                line_number += 1;
             }
 
             return number_of_modified_lines > 0;
@@ -198,12 +198,11 @@ namespace CppRelativeIncludes
             return filepath;
         }
 
-        static List<string> GlobAllSourceFiles(string root, char path_seperator, params string[] extensions)
+        static void GlobAllSourceFiles(string root, char path_seperator, List<KeyValuePair<string, string>> all_source_files, params string[] extensions)
         {
             var rootdirinfo = new DirectoryInfo(root);
             char old_path_seperator = OtherPathSeperator(path_seperator);
 
-            List<string> all = new List<string>();
             foreach (string ext in extensions)
             {
                 var globbed = rootdirinfo.GlobFiles("**/" + ext);
@@ -212,10 +211,9 @@ namespace CppRelativeIncludes
                     string filepath = MakeRelative(root, fi.FullName);
                     filepath = filepath.Replace(old_path_seperator, path_seperator);
                     filepath = FixPath(filepath);
-                    all.Add(filepath);
+                    all_source_files.Add(new KeyValuePair<string,string>(root, filepath));
                 }
             }
-            return all;
         }
 
     }
