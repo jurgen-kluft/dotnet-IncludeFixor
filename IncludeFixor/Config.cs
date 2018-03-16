@@ -31,7 +31,7 @@ namespace IncludeFixor
         [JsonProperty("name")]
         public string Name { get; set; }
 
-        [JsonProperty("name")]
+        [JsonProperty("readonly")]
         public bool ReadOnly { get; set; } = false;
 
         [JsonProperty("path")]
@@ -60,6 +60,12 @@ namespace IncludeFixor
     {
         [JsonProperty("path-separator")]
         public char PathSeparator { get; set; }
+        [JsonProperty("dry-run")]
+        public bool DryRun { get; set; }
+        [JsonProperty("verbose")]
+        public bool Verbose { get; set; }
+        [JsonProperty("include-regex")]
+        public string IncludeRegex{ get; set; } = "\\s*#\\s*include\\s*([<\"])([^>\"]+)([>\"])";
     }
 
     public partial class Source
@@ -78,16 +84,27 @@ namespace IncludeFixor
     {
         private static Config FromJson(string json)
         {
-            return JsonConvert.DeserializeObject<Config>(json, CppRelativeIncludes.Converter.Settings);
+            return JsonConvert.DeserializeObject<Config>(json, IncludeFixor.Converter.Settings);
         }
 
-        public static Config Read(string filepath)
+        public static bool Read(string filepath, out Config config)
         {
-            string json = string.Empty;
+            config = null;
+
             if (File.Exists(filepath))
-                json = File.ReadAllText(filepath);
-            Config cfg = FromJson(json);
-            return cfg;
+            {
+                try
+                {
+                    string json = File.ReadAllText(filepath);
+                    config = FromJson(json);
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine("Error: your json configuration file has an issue (\"\")", e.Message);
+                }
+                return true;
+            }
+            return false;
         }
     }
 
@@ -95,7 +112,7 @@ namespace IncludeFixor
     {
         public static string ToJson(this Config self)
         {
-            return JsonConvert.SerializeObject(self, CppRelativeIncludes.Converter.Settings);
+            return JsonConvert.SerializeObject(self, IncludeFixor.Converter.Settings);
         }
     }
 

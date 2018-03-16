@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
-using System.Text;
+using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using Glob;
 
@@ -15,43 +14,54 @@ namespace IncludeFixor
         // User can register file renames (after the actual physical rename)
         // 
         static bool Verbose { get; set; }
+        static char PathSeparator { get; set; }
 
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-            bool write_files = true;
-            Verbose = true;
-
             // Root folder is ROOT
             // Should we make backups of the cpp/c files that we modify ?
             IncludeFixer includefixer = new IncludeFixer();
 
             // Read the configuration
-            Config config = Config.Read(args[0]);
+            Config config;
+            if (args.Length == 0 || !Config.Read(args[0], out config))
+            {
+                Console.WriteLine("IncludeFixor v1.0, 2018, Virtuos Games");
+                Console.WriteLine("   A utility to adjust/fix/manage include directives of a C++ codebase.");
+                Console.WriteLine("");
+                Console.WriteLine("    IncludeFixor {INPUT FILE}     (e.g. 'IncludeFixor myconfig.json')");
+                Console.WriteLine("");
+                return -1;
+            }
+            Verbose = config.Settings.Verbose;
+            PathSeparator = config.Settings.PathSeparator;
 
             foreach (Include inc in config.Includes)
             {
-                string path = inc.Path;
-                includefixer.RegisterIncludePath(inc.Name, inc.ReadOnly, inc.Extensions);
+                includefixer.RegisterIncludePath(inc.Path, inc.ReadOnly, inc.Extensions);
 
                 foreach (Rename rn in inc.FileRenames)
-                    includefixer.AddFileRename(inc.Name, rn.From, rn.To);
+                    includefixer.AddFileRename(inc.Path, rn.From, rn.To);
                 foreach (Rename rn in inc.FolderRenames)
-                    includefixer.AddFolderRename(inc.Name, rn.From, rn.To);
+                    includefixer.AddFolderRename(inc.Path, rn.From, rn.To);
             }
 
             // Build list of source files (*.c, *.cpp)
             List<KeyValuePair<string, string>> all_source_files = new List<KeyValuePair<string, string>>();
             foreach (Source src in config.Sources)
             {
-                GlobAllSourceFiles(src.Name, config.Settings.PathSeparator, all_source_files, src.Extensions);
+                GlobAllSourceFiles(src.Path, config.Settings.PathSeparator, all_source_files, src.Extensions);
             }
+
+            // Compile our regulare expression to find include directives
+            Regex include_regex = new Regex(config.Settings.IncludeRegex, RegexOptions.Compiled);
 
             // For every source file:
             foreach (KeyValuePair<string, string> cppfile in all_source_files)
             {
                 if (Verbose)
                 {
-                    Console.WriteLine("Processing source file .. \"{0}\"", cppfile.Value);
+                    Console.WriteLine("Processing source file ... \"{0}\"", cppfile.Value);
                 }
 
                 //   Read in all lines
@@ -60,10 +70,10 @@ namespace IncludeFixor
                 string[] lines = File.ReadAllLines(filepath);
 
                 List<string> newlines;
-                if (FixIncludes(basepath, cppfile.Value, lines, includefixer, out newlines))
+                if (FixIncludes(basepath, cppfile.Value, lines, includefixer, include_regex, out newlines))
                 {
                     // Write out all lines if there where any modifications
-                    if (write_files)
+                    if (!config.Settings.DryRun)
                     {
                         File.WriteAllLines(filepath, newlines);
                     }
@@ -83,7 +93,7 @@ namespace IncludeFixor
             {
                 if (Verbose)
                 {
-                    Console.WriteLine("Processing header file .. \"{0}\"", hdrfile.Value);
+                    Console.WriteLine("Processing header file ... \"{0}\"", hdrfile.Value);
                 }
 
                 //   Read in all lines
@@ -93,18 +103,17 @@ namespace IncludeFixor
                 string[] lines = File.ReadAllLines(filepath);
 
                 List<string> newlines;
-                if (FixIncludes(basepath, hdrfile.Value, lines, includefixer, out newlines))
+                if (FixIncludes(basepath, hdrfile.Value, lines, includefixer, include_regex, out newlines))
                 {
                     // Write out all lines if there where any modifications
-                    if (write_files)
+                    if (!config.Settings.DryRun)
                     {
                         File.WriteAllLines(filepath, newlines);
                     }
                 }
             }
 
-            // REPORT
-            // Report any header files that could not be detected
+            return 0;
         }
 
         // File being process can have it's own base-path:
@@ -116,11 +125,10 @@ namespace IncludeFixor
         //
         // Where "Collision.h" also exists in the root, we need to actually get the "Collision.h" that exists in his own folder.
 
-        static bool FixIncludes(string basepath, string filename, string[] lines, IncludeFixer includes, out List<string> outlines)
+        static bool FixIncludes(string basepath, string filename, string[] lines, IncludeFixer includes, Regex include_regex, out List<string> outlines)
         {
             outlines = new List<string>();
 
-            string include = "#include";
             int number_of_modified_lines = 0;
             int line_number = 0;
 
@@ -130,33 +138,31 @@ namespace IncludeFixor
                 bool line_is_modified = false;
                 string modified_line = original_line;
 
-                string line = original_line.Trim(' ');
-                if (line.StartsWith(include))
+                Match regex_match = include_regex.Match(original_line);
+                if (regex_match.Success)
                 {
-                    line = line.Substring(include.Length);
-                    line = line.Trim(' ');
-                    if (line.StartsWith("\""))
+                    var groups = regex_match.Groups;
+                    if (groups.Count == 4 && groups[1].Value == "\"" && groups[3].Value == "\"")
                     {
-                        // Skip the '"'
-                        line = line.Substring(1);
-                        string include_hdr = line.Substring(0, line.IndexOf('"'));
-                        string relative_include_hdr;
-                        if (includes.FindInclude(basepath, include_hdr, out relative_include_hdr))
+                        string include_hdr = groups[2].Value.Trim();
+                        if (includes.FindInclude(basepath, include_hdr, out string relative_include_hdr))
                         {
+                            relative_include_hdr = FixPath(relative_include_hdr);
+
                             const bool ignoreCase = true;
-                            line_is_modified = String.Compare(FixPath(include_hdr), FixPath(relative_include_hdr), ignoreCase) != 0;
+                            line_is_modified = String.Compare(include_hdr, relative_include_hdr, ignoreCase) != 0;
                             if (line_is_modified)
                             {
                                 modified_line = original_line.Replace(include_hdr, relative_include_hdr);
                                 if (Verbose)
                                 {
-                                    Console.WriteLine("    file:\"{0}\", line({1}): \"{2}\" into \"{3}\".", filename, line_number, original_line, modified_line);
+                                    Console.WriteLine("    changed:\"{0}\", line({1}): \"{2}\"  -->  \"{3}\".", filename, line_number, original_line, modified_line);
                                 }
                             }
                         }
                         else
                         {
-                            Console.WriteLine("    Warning: file:\"{0}\", line({1}): Could not find matching include for \"{2}\".", filename, line_number, include_hdr);
+                            Console.WriteLine("    warning:\"{0}\", line({1}): Could not find matching include for \"{2}\".", filename, line_number, include_hdr);
                         }
                     }
                 }
@@ -194,7 +200,7 @@ namespace IncludeFixor
         }
         static private string FixPath(string filepath)
         {
-            filepath = filepath.Replace('\\', '/');
+            filepath = filepath.Replace(OtherPathSeperator(PathSeparator), PathSeparator);
             return filepath;
         }
 
