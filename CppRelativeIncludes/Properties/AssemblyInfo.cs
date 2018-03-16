@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("CppRelativeIncludes")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("IncludeFixor")]
+[assembly: AssemblyDescription("C++ include fixing")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("CppRelativeIncludes")]
-[assembly: AssemblyCopyright("Copyright ©  2018")]
+[assembly: AssemblyCompany("Virtuos Games")]
+[assembly: AssemblyProduct("IncludeFixor")]
+[assembly: AssemblyCopyright("Copyright © Virtuos Games 2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

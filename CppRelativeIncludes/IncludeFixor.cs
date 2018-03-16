@@ -3,7 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using Glob;
 
-namespace CppRelativeIncludes
+namespace IncludeFixor
 {
     public class IncludeFixer
     {

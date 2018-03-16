@@ -5,7 +5,7 @@ using System.Text;
 using System.Collections.Generic;
 using Glob;
 
-namespace CppRelativeIncludes
+namespace IncludeFixor
 {
     class Program
     {

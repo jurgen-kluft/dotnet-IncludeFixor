@@ -4,7 +4,7 @@
 //
 //    var config = Config.FromJson(jsonString);
 
-namespace CppRelativeIncludes
+namespace IncludeFixor
 {
     using System;
     using System.Collections.Generic;
