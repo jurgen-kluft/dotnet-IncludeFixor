@@ -3,6 +3,8 @@
 //    using CppRelativeIncludes;
 //
 //    var config = Config.FromJson(jsonString);
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace IncludeFixor
 {
@@ -11,8 +13,6 @@ namespace IncludeFixor
     using System.IO;
 
     using System.Globalization;
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Converters;
 
     public partial class Config
     {
@@ -34,10 +34,13 @@ namespace IncludeFixor
         [JsonProperty("readonly")]
         public bool ReadOnly { get; set; } = false;
 
-        [JsonProperty("path")]
-        public string Path { get; set; }
+		[JsonProperty("scanner_path")]
+		public string ScannerPath { get; set; }
 
-        [JsonProperty("extensions")]
+		[JsonProperty("include_path")]
+		public string IncludePath { get; set; }
+
+		[JsonProperty("extensions")]
         public string[] Extensions { get; set; } = new string[0];
 
         [JsonProperty("file-renames")]
@@ -45,9 +48,18 @@ namespace IncludeFixor
 
         [JsonProperty("folder-renames")]
         public List<Rename> FolderRenames { get; set; } = new List<Rename>();
-    }
 
-    public partial class Rename
+		[JsonProperty("include-guards")]
+		public IncludeGuards IncludeGuards { get; set; } = new IncludeGuards();
+	}
+
+	public partial class IncludeGuards
+	{
+		[JsonProperty("prefix")]
+		public string Prefix { get; set; } = "";
+	}
+
+	public partial class Rename
     {
         [JsonProperty("from")]
         public string From { get; set; }
@@ -60,21 +72,23 @@ namespace IncludeFixor
     {
         [JsonProperty("path-separator")]
         public char PathSeparator { get; set; }
-        [JsonProperty("dry-run")]
-        public bool DryRun { get; set; }
-        [JsonProperty("verbose")]
+		[JsonProperty("log")]
+		public bool Log { get; set; }
+		[JsonProperty("dry-run")]
+		public bool DryRun { get; set; }
+		[JsonProperty("verbose")]
         public bool Verbose { get; set; }
         [JsonProperty("include-regex")]
-        public string IncludeRegex{ get; set; } = "\\s*#\\s*include\\s*([<\"])([^>\"]+)([>\"])";
-    }
+		public string IncludeRegex { get; set; } = "\\s*#\\s*include\\s*([<\"])([^>\"]+)([>\"])";
+	}
 
-    public partial class Source
+	public partial class Source
     {
         [JsonProperty("name")]
         public string Name { get; set; }
 
-        [JsonProperty("path")]
-        public string Path { get; set; }
+        [JsonProperty("scanner_path")]
+        public string ScannerPath { get; set; }
 
         [JsonProperty("extensions")]
         public string[] Extensions { get; set; } = new string[0];

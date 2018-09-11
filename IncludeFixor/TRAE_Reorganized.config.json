@@ -1,0 +1,150 @@
+{
+  "settings": {
+    "path-separator": "\\",
+    "dry-run": false,
+    "verbose":  true
+  },
+  "includes": [
+    {
+      "name": "dx9_root",
+      "path": "e:\\trae\\cdc\\3rdparty\\DX9SDK\\include\\",
+      "extensions": [ "*.h", "*.H", "*.hpp", "*.HPP" ],
+      "readonly": true,
+      "include-regex": "\\s*#\\s*include\\s*([<\"])([^>\"]+)([>\"])"
+    },
+    {
+      "name": "cdc_root",
+      "path": "e:\\Dev.Go\\src\\github.com\\jurgen-kluft\\TRCDC\\source\\main\\include\\cdc\\runtime\\",
+      "extensions": ["*.h", "*.H", "*.hpp", "*.HPP"],
+      "file-renames": [
+        {
+          "from": "cdcMath/math.h",
+          "to": "cdcMath/sysMath.h"
+        }
+      ]
+    },
+    {
+      "name": "game_root",
+      "path": "e:\\Dev.Go\\src\\github.com\\jurgen-kluft\\TRCDC\\source\\main\\include\\game\\",
+      "extensions": ["*.h", "*.H", "*.hpp", "*.HPP"],
+      "folder-renames": [
+        {
+          "from": "Animation",
+          "to": "gameAnimation"
+        },
+        {
+          "from": "Archive",
+          "to": "gameArchive"
+        },
+        {
+          "from": "Camera",
+          "to": "gameCamera"
+        },
+        {
+          "from": "Debug",
+          "to": "gameDebug"
+        },
+        {
+          "from": "enemy",
+          "to": "gameEnemy"
+        },
+        {
+          "from": "fx",
+          "to": "gameFx"
+        },
+        {
+          "from": "G2",
+          "to": "gameG2"
+        },
+        {
+          "from": "Input",
+          "to": "gameInput"
+        },
+        {
+          "from": "Local",
+          "to": "gameLocal"
+        },
+        {
+          "from": "Monster",
+          "to": "gameMonster"
+        },
+        {
+          "from": "Multibody",
+          "to": "gameMultibody"
+        },
+        {
+          "from": "Objects",
+          "to": "gameObjects"
+        },
+        {
+          "from": "PC",
+          "to": "gamePC"
+        },
+        {
+          "from": "Physics",
+          "to": "gamePhysics"
+        },
+        {
+          "from": "Player",
+          "to": "gamePlayer"
+        },
+        {
+          "from": "ReaverGUI",
+          "to": "gameReaverGUI"
+        },
+        {
+          "from": "Resolve",
+          "to": "gameResolve"
+        },
+        {
+          "from": "Save",
+          "to": "gameSave"
+        },
+        {
+          "from": "Scene",
+          "to": "gameScene"
+        },
+        {
+          "from": "sound",
+          "to": "gameSound"
+        },
+        {
+          "from": "Stream",
+          "to": "gameStream"
+        },
+        {
+          "from": "menu",
+          "to": "gameMenu"
+        },
+        {
+          "from": "padshock",
+          "to": "gamePadshock"
+        },
+        {
+          "from": "script",
+          "to": "gameScript"
+        },
+        {
+          "from": "VehicleSection",
+          "to": "gameVehicleSection"
+        },
+        {
+          "from": "WorldRep",
+          "to": "gameWorldRep"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "name": "cdc_sources",
+      "path": "e:\\Dev.Go\\src\\github.com\\jurgen-kluft\\TRCDC\\source\\main\\cpp\\cdc\\runtime\\",
+      "extensions": ["*.c", "*.C", "*.cpp", "*.CPP"]
+    },
+    {
+      "name": "game_sources",
+      "path": "e:\\Dev.Go\\src\\github.com\\jurgen-kluft\\TRCDC\\source\\main\\cpp\\game\\",
+      "extensions": ["*.c", "*.C", "*.cpp", "*.CPP", "*.cpp.inline"]
+    }
+  ]
+}

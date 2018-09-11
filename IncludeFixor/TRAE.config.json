@@ -1,150 +1,53 @@
 {
   "settings": {
-    "path-separator": "\\",
+    "log": true,
+    "path-separator": "/",
     "dry-run": true,
-    "verbose":  true
+    "verbose": true
   },
   "includes": [
     {
       "name": "dx9_root",
-      "path": "e:\\trae\\cdc\\3rdparty\\DX9SDK\\include\\",
+      "scanner_path": "e:\\trae.git\\cdc\\3rdparty\\DX9SDK\\include\\",
+      "include_path": "",
       "extensions": [ "*.h", "*.H", "*.hpp", "*.HPP" ],
-      "readonly": true,
-      "include-regex": "\\s*#\\s*include\\s*([<\"])([^>\"]+)([>\"])"
-    },
-    {
-      "name": "cdc_root",
-      "path": "e:\\Dev.Go\\src\\github.com\\jurgen-kluft\\TRCDC\\source\\main\\include\\cdc\\runtime\\",
-      "extensions": ["*.h", "*.H", "*.hpp", "*.HPP"],
-      "file-renames": [
-        {
-          "from": "cdcMath/math.h",
-          "to": "cdcMath/sysMath.h"
-        }
-      ]
+      "readonly": true
     },
     {
       "name": "game_root",
-      "path": "e:\\Dev.Go\\src\\github.com\\jurgen-kluft\\TRCDC\\source\\main\\include\\game\\",
-      "extensions": ["*.h", "*.H", "*.hpp", "*.HPP"],
-      "folder-renames": [
-        { 
-          "from": "Animation",
-          "to": "gameAnimation" 
-        },
-        { 
-          "from": "Archive",
-          "to": "gameArchive" 
-        },
-        { 
-          "from": "Camera",
-          "to": "gameCamera" 
-        },
-        { 
-          "from": "Debug",
-          "to": "gameDebug" 
-        },
-        { 
-          "from": "enemy",
-          "to": "gameEnemy" 
-        },
-        { 
-          "from": "fx",
-          "to": "gameFx" 
-        },
-        { 
-          "from": "G2",
-          "to": "gameG2" 
-        },
-        { 
-          "from": "Input",
-          "to": "gameInput" 
-        },
-        { 
-          "from": "Local",
-          "to": "gameLocal" 
-        },
-        { 
-          "from": "Monster",
-          "to": "gameMonster" 
-        },
-        { 
-          "from": "Multibody",
-          "to": "gameMultibody" 
-        },
-        { 
-          "from": "Objects",
-          "to": "gameObjects" 
-        },
-        { 
-          "from": "PC",
-          "to": "gamePC" 
-        },
-        { 
-          "from": "Physics",
-          "to": "gamePhysics" 
-        },
-        { 
-          "from": "Player",
-          "to": "gamePlayer" 
-        },
-        { 
-          "from": "Resolve",
-          "to": "gameResolve" 
-        },
-        { 
-          "from": "Scene",
-          "to": "gameScene" 
-        },
-        { 
-          "from": "Stream",
-          "to": "gameStream" 
-        },
-        { 
-          "from": "menu",
-          "to": "gameMenu" 
-        },
-        { 
-          "from": "padshock",
-          "to": "gamePadshock" 
-        },
-        { 
-          "from": "ReaverGUI",
-          "to": "gameReaverGUI" 
-        },
-        { 
-          "from": "Save",
-          "to": "gameSave" 
-        },
-        { 
-          "from": "script",
-          "to": "gameScript" 
-        },
-        { 
-          "from": "sound",
-          "to": "gameSound" 
-        },
-        { 
-          "from": "VehicleSection",
-          "to": "gameVehicleSection" 
-        },
-        { 
-          "from": "WorldRep",
-          "to": "gameWorldRep" 
-        }
+      "scanner_path": "e:\\trae.git\\game\\",
+      "include_path": "trae\\game\\",
+      "extensions": [ "*.h", "*.H", "*.hpp", "*.HPP" ],
+      "include-guards": {
+        "prefix" :  "TRAE_"
+      }
+    },
+    {
+      "name": "cdc_root",
+      "scanner_path": "e:\\trae.git\\cdc\\runtime\\",
+      "include_path": "trae\\cdc\\runtime\\",
+      "extensions": [ "*.h", "*.H", "*.hpp", "*.HPP" ],
+      "file-renames": [
       ]
+    },
+    {
+      "name": "dtp_root",
+      "scanner_path": "e:\\trae.git\\dtp\\output\\",
+      "include_path": "trae\\dtp\\output\\",
+      "extensions": [ "*.h", "*.H", "*.hpp", "*.HPP" ],
+      "readonly": true
     }
   ],
   "sources": [
     {
       "name": "cdc_sources",
-      "path": "e:\\Dev.Go\\src\\github.com\\jurgen-kluft\\TRCDC\\source\\main\\cpp\\cdc\\runtime\\",
-      "extensions": ["*.c", "*.C", "*.cpp", "*.CPP"]
+      "scanner_path": "e:\\trae.git\\cdc\\runtime\\",
+      "extensions": [ "*.c", "*.C", "*.cpp", "*.CPP" ]
     },
     {
       "name": "game_sources",
-      "path": "e:\\Dev.Go\\src\\github.com\\jurgen-kluft\\TRCDC\\source\\main\\cpp\\game\\",
-      "extensions": ["*.c", "*.C", "*.cpp", "*.CPP"]
+      "scanner_path": "e:\\trae.git\\game\\",
+      "extensions": [ "*.c", "*.C", "*.cpp", "*.CPP", "*.cpp.inline" ]
     }
   ]
 }

@@ -63,9 +63,13 @@
     <Compile Include="Glob\TokenKind.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TextWriterRouter.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="TRAE_Reorganized.config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="TRAE.config.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
