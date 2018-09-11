@@ -18,6 +18,7 @@
 !*.json
 !*.py
 !*.xml
+!*.config
 
 !*.cs
 !*.csproj
