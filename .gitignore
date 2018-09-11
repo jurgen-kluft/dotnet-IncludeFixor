@@ -1,0 +1,36 @@
+#ignore all files
+*.*
+
+#except the following files
+!*.cpp
+!*.hpp
+!*.c
+!*.rc
+!*.h
+!*.inc
+!*.inline
+
+!*.dtp
+!*.dtpinc
+
+!*.go
+!*.lua
+!*.json
+!*.py
+!*.xml
+
+!*.cs
+!*.csproj
+!*.resx
+
+!*.hlsl
+!*.fragment
+!*.nxshader
+
+!*.ini
+!*.bat
+
+# ignore the following folders
+/.vs/
+/IncludeFixor/bin/
+/IncludeFixor/obj/
