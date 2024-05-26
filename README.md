@@ -1,8 +1,8 @@
 # Include Fixor
 
-A CLI tool that can fix include directives in C/C++ source files based on a scan initiated from a configuration file.
+A CLI tool that can `adjust` include directives in C/C++ source files based on a scan initiated from a configuration file.
 
-You can use this tool to end-up with a single include directory to add to your C++ project configuration. 
+You can use this tool so as to end-up with a single include directory to add to your C++ project configuration(s). 
 Some projects like old game engines are careless with their include directories and end-up with soo many of them that it 
 become dangerous when you have header files with the same name. 
 You now have a dependency on the order in which you have provided your include directories which is hard to read and understand.
