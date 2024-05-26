@@ -10,19 +10,19 @@ You now have a dependency on the order in which you have provided your include d
 What you actually really want is a single directory called something like `source`, and under that folder, assuming you are
 using multiple libraries could look a bit like this:
 
-- `source/cpp/renderer`
-- `source/cpp/filesystem`
-- `source/cpp/imgui`
-- `source/cpp/oodle`
+- `source/main/cpp/renderer`
+- `source/main/cpp/filesystem`
+- `source/main/cpp/imgui`
+- `source/main/cpp/oodle`
 
-- `source/include/renderer`
-- `source/include/filesystem`
-- `source/include/imgui`
-- `source/include/oodle`
+- `source/main/include/renderer`
+- `source/main/include/filesystem`
+- `source/main/include/imgui`
+- `source/main/include/oodle`
 
 The include directory that should be registered in the project is:
 
-- `source/include`
+- `source/main/include`
 
 So source and header files should use the following standard to include a header file:
 
@@ -31,5 +31,5 @@ So source and header files should use the following standard to include a header
 #include "oodle/oodle.h"
 ```
 
-Where `renderer/dx12/dx12.h` is a sub directory under `source/include`.
+Where `renderer/dx12/dx12.h` is a sub directory under `source/main/include`.
 
