@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("IncludeFixor")]
 [assembly: AssemblyDescription("C++ include fixing")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Virtuos Games")]
+[assembly: AssemblyCompany("Jurgen")]
 [assembly: AssemblyProduct("IncludeFixor")]
-[assembly: AssemblyCopyright("Copyright © Virtuos Games 2018")]
+[assembly: AssemblyCopyright("Copyright © Jurgen 2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Spectre.Console" Version="0.45.0" />
+    <PackageReference Include="Spectre.Console.CLI" Version="0.45.0" />
     <PackageReference Include="System.Reflection" Version="4.3.0" />
     <PackageReference Include="System.Reflection.Metadata" Version="8.0.0" />
     <PackageReference Include="System.Reflection.MetadataLoadContext" Version="8.0.0" />

@@ -241,7 +241,7 @@ namespace IncludeFixor
 			var includePath = include.IncludePath;
 			var fileExtensions = include.Extensions;
 
-			var rootDirInfo = new DirectoryInfo(scannerPath);
+			var rootDirInfo = new DirectoryInfo(Path.Join(Environment.CurrentDirectory, scannerPath));
             var oldPathSeparator = OtherPathSeparator(PathSeparator);
 
             var headerFiles = new List<string>();
@@ -250,7 +250,7 @@ namespace IncludeFixor
                 var globbed = rootDirInfo.GlobFiles("**/" + extension);
                 foreach (var fi in globbed)
                 {
-                    var filepath = MakeRelative(scannerPath, fi.FullName);
+                    var filepath = MakeRelative(rootDirInfo.FullName, fi.FullName);
 					filepath = filepath.Replace(oldPathSeparator, PathSeparator);
                     headerFiles.Add(filepath);
                 }
@@ -296,13 +296,15 @@ namespace IncludeFixor
 
 		public void ForeachHeaderFileThatNeedIncludeDirFix(Action<string, string> action)
 		{
-			//var hdrfiles = new List<string>();
 			foreach (var include in _mIncludes)
 			{
 				if (include.Include.ReadOnly == false)
 				{
 					foreach (var hdr in include.HeaderFiles)
-					{
+                    {
+                        if (!File.Exists(Path.Join(include.Include.ScannerPath, hdr)))
+                            continue;
+
 						action(include.Include.ScannerPath, hdr);
 					}
 				}
@@ -310,15 +312,16 @@ namespace IncludeFixor
 		}
 		public void ForeachHeaderFileThatNeedIncludeGuardFix(Action<string, string, string> action)
 		{
-			//var hdrfiles = new List<string>();
 			foreach (var include in _mIncludes)
 			{
 				if (include.Include.IncludeGuards != null && !String.IsNullOrEmpty(include.Include.IncludeGuards.Prefix))
 				{
-					var includeguardPrefix = include.Include.IncludeGuards.Prefix;
+					var includeGuardPrefix = include.Include.IncludeGuards.Prefix;
 					foreach (var hdr in include.HeaderFiles)
 					{
-						action(include.Include.ScannerPath, hdr, includeguardPrefix);
+                        if (!File.Exists(Path.Join(include.Include.ScannerPath, hdr)))
+                            continue;
+						action(include.Include.ScannerPath, hdr, includeGuardPrefix);
 					}
 				}
 			}
