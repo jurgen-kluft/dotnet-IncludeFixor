@@ -166,7 +166,7 @@ namespace IncludeFixor
 		//
 		// Where "Collision.h" also exists in the root, we need to actually get the "Collision.h" that exists in his own folder.
 
-		static bool FixIncludeDirectives(string basepath, string filename, string[] lines, IncludeFixer includes, Regex includeRegex, out List<string> outlines)
+		static bool FixIncludeDirectives(string basePath, string filename, string[] lines, IncludeFixer includes, Regex includeRegex, out List<string> outlines)
 		{
 			outlines = new List<string>();
 
@@ -186,7 +186,7 @@ namespace IncludeFixor
 					if (groups.Count == 4 && groups[1].Value == "\"" && groups[3].Value == "\"")
 					{
 						var includeHdr = groups[2].Value.Trim();
-						if (includes.FindInclude(basepath, includeHdr, out var relativeIncludeHdr))
+						if (includes.FindInclude(basePath, includeHdr, out var relativeIncludeHdr))
 						{
 							relativeIncludeHdr = FixPath(relativeIncludeHdr);
 
@@ -225,7 +225,7 @@ namespace IncludeFixor
 		}
 
 
-		static bool FixIncludeGuard(string basepath, string filename, string includeguardPrefix, string[] lines, IncludeFixer includes, Regex includeguardIfndef, Regex includeguardDefine, out List<string> outlines)
+		static bool FixIncludeGuard(string basePath, string filename, string includeGuardPrefix, string[] lines, IncludeFixer includes, Regex includeGuardIfNotDefined, Regex includeGuardDefine, out List<string> outlines)
 		{
 			outlines = new List<string>();
 
@@ -249,25 +249,25 @@ namespace IncludeFixor
 
 			if (lines.Length >= (i + 2))
 			{
-				var ifndefMatch = includeguardIfndef.Match(lines[i]);
-				if (ifndefMatch.Success)
+				var ifNotDefinedMatch = includeGuardIfNotDefined.Match(lines[i]);
+				if (ifNotDefinedMatch.Success)
 				{
-					var defineMatch = includeguardDefine.Match(lines[i+1]);
+					var defineMatch = includeGuardDefine.Match(lines[i+1]);
 					if (defineMatch.Success)
 					{
-						var ifndefGroups = ifndefMatch.Groups;
+						var ifNotDefinedGroups = ifNotDefinedMatch.Groups;
 						var defineGroups = defineMatch.Groups;
-						if (ifndefGroups.Count >= 2 && defineGroups.Count >= 2)
+						if (ifNotDefinedGroups.Count >= 2 && defineGroups.Count >= 2)
 						{
-							var ifndefSymbol = ifndefGroups[2].Value.Trim();
+							var ifNotDefinedSymbol = ifNotDefinedGroups[2].Value.Trim();
 							var defineSymbol = defineGroups[2].Value.Trim();
-							if (ifndefSymbol == defineSymbol)
+							if (ifNotDefinedSymbol == defineSymbol)
 							{
-								// Ok we have found an include guard like this:
+								// Ok we have found an include guard, something like:
 								// #ifndef __SYMBOL__
 								// #define __SYMBOL__
-								outlines.Add(lines[i].Replace(ifndefSymbol, includeguardPrefix + ifndefSymbol));
-								outlines.Add(lines[i+1].Replace(ifndefSymbol, includeguardPrefix + ifndefSymbol));
+								outlines.Add(lines[i].Replace(ifNotDefinedSymbol, includeGuardPrefix + ifNotDefinedSymbol));
+								outlines.Add(lines[i+1].Replace(ifNotDefinedSymbol, includeGuardPrefix + ifNotDefinedSymbol));
 								i += 2;
 								numberOfModifiedLines = 2;
 							}
@@ -293,33 +293,33 @@ namespace IncludeFixor
 			return filepath;
 		}
 
-		static char OtherPathSeperator(char pathSeperator)
+		static char OtherPathSeparator(char pathSeparator)
 		{
-			switch (pathSeperator)
+			switch (pathSeparator)
 			{
 				case '/': return '\\';
 				case '\\': return '/';
 			}
-			return pathSeperator;
+			return pathSeparator;
 		}
-		static private string FixPath(string filepath)
+		private static string FixPath(string filepath)
 		{
-			filepath = filepath.Replace(OtherPathSeperator(PathSeparator), PathSeparator);
+			filepath = filepath.Replace(OtherPathSeparator(PathSeparator), PathSeparator);
 			return filepath;
 		}
 
-		static void GlobAllSourceFiles(string root, char pathSeperator, List<KeyValuePair<string, string>> allSourceFiles, params string[] extensions)
+		static void GlobAllSourceFiles(string root, char pathSeparator, List<KeyValuePair<string, string>> allSourceFiles, params string[] extensions)
 		{
-			var rootdirinfo = new DirectoryInfo(root);
-			var oldPathSeperator = OtherPathSeperator(pathSeperator);
+			var rootDirInfo = new DirectoryInfo(root);
+			var oldPathSeparator = OtherPathSeparator(pathSeparator);
 
 			foreach (var ext in extensions)
 			{
-				var globbed = rootdirinfo.GlobFiles("**/" + ext);
+				var globbed = rootDirInfo.GlobFiles("**/" + ext);
 				foreach (var fi in globbed)
 				{
 					var filepath = MakeRelative(root, fi.FullName);
-					filepath = filepath.Replace(oldPathSeperator, pathSeperator);
+					filepath = filepath.Replace(oldPathSeparator, pathSeparator);
 					filepath = FixPath(filepath);
 					allSourceFiles.Add(new KeyValuePair<string, string>(root, filepath));
 				}

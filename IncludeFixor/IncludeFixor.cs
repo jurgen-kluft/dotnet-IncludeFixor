@@ -25,7 +25,7 @@ namespace IncludeFixor
                 OldFolderNames = new List<string>();
                 Filenames = new List<string>();
                 OldFilenames = new List<string>();
-                Filepaths = new List<string>();
+                FilePaths = new List<string>();
                 SubFolders = new List<HeaderIncludeTree>();
             }
 
@@ -33,7 +33,7 @@ namespace IncludeFixor
             private List<string> OldFolderNames { get; set; }
             private List<string> Filenames { get; set; }
             public List<string> OldFilenames { get; set; }
-            private List<string> Filepaths { get; set; }
+            private List<string> FilePaths { get; set; }
             private List<HeaderIncludeTree> SubFolders { get; set; }
 
             private static bool AreFolderNamesEqual(string folderName, string otherFolderName)
@@ -80,7 +80,7 @@ namespace IncludeFixor
                 if (headerinclude.Count == 0)
                 {
                     Filenames.Add(part);
-                    Filepaths.Add(fullheaderinclude);
+                    FilePaths.Add(fullheaderinclude);
                     return true;
                 }
                 else
@@ -111,7 +111,7 @@ namespace IncludeFixor
                 {
                     if (AreFileNamesEqual(headerFilename, filename))
                     {
-                        correctedHeaderFilename = Filepaths[index];
+                        correctedHeaderFilename = FilePaths[index];
                         return true;
                     }
                     index += 1;
@@ -206,11 +206,11 @@ namespace IncludeFixor
             return false;
         }
 
-        public void AddFolderRename(string includepath, string original, string renamed)
+        public void AddFolderRename(string includePath, string original, string renamed)
         {
             foreach(var dir in _mIncludes)
             {
-                if (dir.Include.IncludePath == includepath)
+                if (dir.Include.IncludePath == includePath)
                 {
                     var originalParts = FixPath(original).Split(PathSeparator);
                     var renamedParts = FixPath(renamed).Split(PathSeparator);
@@ -218,17 +218,17 @@ namespace IncludeFixor
                     // Traverse down the include tree folder by folder
 
                     // Find 'original' and get 'renamed'
-                    var headertree = dir.HeaderIncludeTree;
+                    var headerTree = dir.HeaderIncludeTree;
                     for (var i = 0; i < originalParts.Length && i < renamedParts.Length; ++i)
                     {
-                        headertree = headertree.AddFolderRename(originalParts[i], renamedParts[i]);
+                        headerTree = headerTree.AddFolderRename(originalParts[i], renamedParts[i]);
                     }
 
                     // Find 'renamed' and get 'renamed'
-                    headertree = dir.HeaderIncludeTree;
+                    headerTree = dir.HeaderIncludeTree;
                     for (var i = 0; i < originalParts.Length && i < renamedParts.Length; ++i)
                     {
-                        headertree = headertree.AddFolderRename(renamedParts[i], originalParts[i]);
+                        headerTree = headerTree.AddFolderRename(renamedParts[i], originalParts[i]);
                     }
                     break;
                 }
@@ -242,7 +242,7 @@ namespace IncludeFixor
 			var fileExtensions = include.Extensions;
 
 			var rootDirInfo = new DirectoryInfo(scannerPath);
-            var oldPathSeparator = OtherPathSeperator(PathSeparator);
+            var oldPathSeparator = OtherPathSeparator(PathSeparator);
 
             var headerFiles = new List<string>();
             foreach (var extension in fileExtensions)
@@ -328,7 +328,7 @@ namespace IncludeFixor
         {
             resultingHeaderInclude = headerInclude;
 
-            //   1) Try to find it relative to currentpath
+            //   1) Try to find it relative to currentPath
             var currentHeaderInclude = AsDictionaryKey(Path.Combine(currentPath, headerInclude));
             foreach (var include in _mIncludes)
             {
@@ -367,7 +367,7 @@ namespace IncludeFixor
 
         private string FixPath(string filepath)
         {
-            var oldPathSeparator = OtherPathSeperator(PathSeparator);
+            var oldPathSeparator = OtherPathSeparator(PathSeparator);
             filepath = filepath.Replace(oldPathSeparator, PathSeparator);
             return filepath;
         }
@@ -390,14 +390,14 @@ namespace IncludeFixor
             return 0;
         }
 
-        private static char OtherPathSeperator(char pathSeperator)
+        private static char OtherPathSeparator(char pathSeparator)
         {
-            switch (pathSeperator)
+            switch (pathSeparator)
             {
                 case '/': return '\\';
                 case '\\': return '/';
             }
-            return pathSeperator;
+            return pathSeparator;
         }
 
 		private static string MakeRelative(string root, string filepath)
@@ -405,9 +405,9 @@ namespace IncludeFixor
 			filepath = filepath.Substring(root.Length);
 			return filepath;
 		}
-		private static string Join(string rootpath, string filepath)
+		private static string Join(string rootPath, string filepath)
 		{
-			var newPath = Path.Combine(rootpath, filepath);
+			var newPath = Path.Combine(rootPath, filepath);
 			return newPath;
 		}
 	}
