@@ -20,12 +20,16 @@ using multiple libraries could look a bit like this:
 - `source/include/imgui`
 - `source/include/oodle`
 
-All source files should use the following standard to include a header file:
+The include directory that should be registered in the project is:
+
+- `source/include`
+
+So source and header files should use the following standard to include a header file:
 
 ```c++
 #include "renderer/dx12/dx12.h"
 #include "oodle/oodle.h"
 ```
 
-Where `renderer/dx12/dx12.h` is a sub directory under `source`.
+Where `renderer/dx12/dx12.h` is a sub directory under `source/include`.
 
