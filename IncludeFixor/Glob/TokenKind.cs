@@ -20,6 +20,6 @@
 
         WindowsRoot = 10,           // :
 
-        EOT = 100,
+        Eot = 100,
     }
 }

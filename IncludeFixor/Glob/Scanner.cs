@@ -60,7 +60,7 @@ namespace Glob
         private TokenKind ScanToken()
         {
             if(this._currentCharacter == -1)
-                return TokenKind.EOT;
+                return TokenKind.Eot;
 
             var current = (char) _currentCharacter;
 

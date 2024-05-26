@@ -38,7 +38,7 @@ namespace Glob
 
     class DirectoryWildcard : Segment
     {
-        public static readonly DirectoryWildcard Default = new DirectoryWildcard();
+        public static readonly DirectoryWildcard sDefault = new DirectoryWildcard();
 
         private DirectoryWildcard()
             : base(GlobNodeType.DirectoryWildcard)
@@ -67,7 +67,7 @@ namespace Glob
 
     class StringWildcard : SubSegment
     {
-        public static readonly StringWildcard Default = new StringWildcard();
+        public static readonly StringWildcard sDefault = new StringWildcard();
 
         private StringWildcard()
             : base(GlobNodeType.StringWildcard)
@@ -77,7 +77,7 @@ namespace Glob
 
     class CharacterWildcard : SubSegment
     {
-        public static readonly CharacterWildcard Default = new CharacterWildcard();
+        public static readonly CharacterWildcard sDefault = new CharacterWildcard();
 
         private CharacterWildcard()
             : base(GlobNodeType.CharacterWildcard)

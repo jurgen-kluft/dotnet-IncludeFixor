@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
+﻿using System.Text.RegularExpressions;
 using Glob;
 
 namespace IncludeFixor
@@ -12,7 +9,7 @@ namespace IncludeFixor
 		// Follows standard C/C++ include mechanism
 		// User can register folder renames (after the actual physical rename, this script will not rename your files or folders)
 		// User can register file renames (after the actual physical rename)
-		// 
+		//
 		static bool Verbose { get; set; }
 		static char PathSeparator { get; set; }
 
@@ -20,11 +17,10 @@ namespace IncludeFixor
 		{
 			// Root folder is ROOT
 			// Should we make backups of the cpp/c files that we modify ?
-			IncludeFixer includefixer = new IncludeFixer();
+			var includeFixer = new IncludeFixer();
 
 			// Read the configuration
-			Config config;
-			if (args.Length == 0 || !Config.Read(args[0], out config))
+            if (args.Length == 0 || !Config.Read(args[0], out var config))
 			{
 				Console.WriteLine("IncludeFixor v1.0, 2018, Virtuos Games");
 				Console.WriteLine("   A utility to adjust/fix/manage include directives of a C++ codebase.");
@@ -36,127 +32,125 @@ namespace IncludeFixor
 			Verbose = config.Settings.Verbose;
 			PathSeparator = config.Settings.PathSeparator;
 
-			List<TextWriter> writers = new List<TextWriter>();
-			writers.Add(Console.Out);
-			TextWriterRouter router = new TextWriterRouter(writers);
+			var writers = new List<TextWriter> { Console.Out };
+            var router = new TextWriterRouter(writers);
 			Console.SetOut(router);
 
-			FileStream logfile = null;
-			StreamWriter logwriter = null;
+			FileStream logFile = null;
+			StreamWriter logWriter = null;
 			if (config.Settings.Log)
 			{
-				logfile = new FileStream(args[0] + ".log", FileMode.Create, FileAccess.ReadWrite);
-				logwriter = new StreamWriter(logfile);
-				logwriter.AutoFlush = true;
-				router.AddWriter(logwriter);
+				logFile = new FileStream(args[0] + ".log", FileMode.Create, FileAccess.ReadWrite);
+				logWriter = new StreamWriter(logFile);
+				logWriter.AutoFlush = true;
+				router.AddWriter(logWriter);
 			}
 
-			foreach (Include inc in config.Includes)
+			foreach (var inc in config.Includes)
 			{
-				includefixer.RegisterIncludePath(inc);
+				includeFixer.RegisterIncludePath(inc);
 
-				foreach (Rename rn in inc.FileRenames)
-					includefixer.AddFileRename(inc.ScannerPath, rn.From, rn.To);
-				foreach (Rename rn in inc.FolderRenames)
-					includefixer.AddFolderRename(inc.ScannerPath, rn.From, rn.To);
+				foreach (var rn in inc.FileRenames)
+					includeFixer.AddFileRename(inc.ScannerPath, rn.From, rn.To);
+				foreach (var rn in inc.FolderRenames)
+					includeFixer.AddFolderRename(inc.ScannerPath, rn.From, rn.To);
 			}
 
 			// Build list of source files (*.c, *.cpp)
-			List<KeyValuePair<string, string>> all_source_files = new List<KeyValuePair<string, string>>();
-			foreach (Source src in config.Sources)
+			var allSourceFiles = new List<KeyValuePair<string, string>>();
+			foreach (var src in config.Sources)
 			{
-				GlobAllSourceFiles(src.ScannerPath, config.Settings.PathSeparator, all_source_files, src.Extensions);
+				GlobAllSourceFiles(src.ScannerPath, config.Settings.PathSeparator, allSourceFiles, src.Extensions);
 			}
 
 			// Compile our regulare expression to find include directives
-			Regex include_regex = new Regex(config.Settings.IncludeRegex, RegexOptions.Compiled);
+			var includeRegex = new Regex(config.Settings.IncludeRegex, RegexOptions.Compiled);
 
 			// For every source file:
-			foreach (KeyValuePair<string, string> cppfile in all_source_files)
+			foreach (var cppFile in allSourceFiles)
 			{
 				if (Verbose)
 				{
-					Console.WriteLine("Processing source file ... \"{0}\"", cppfile.Value);
+					Console.WriteLine("Processing source file ... \"{0}\"", cppFile.Value);
 				}
 
 				//   Read in all lines
-				string filepath = FixPath(Path.Combine(cppfile.Key, cppfile.Value));
-				string basepath = FixPath(Path.GetDirectoryName(cppfile.Value));
-				string[] lines = File.ReadAllLines(filepath);
+				var filePath = FixPath(Path.Combine(cppFile.Key, cppFile.Value));
+				var basePath = FixPath(Path.GetDirectoryName(cppFile.Value));
+				var lines = File.ReadAllLines(filePath);
 
-				List<string> newlines;
-				if (FixIncludeDirectives(basepath, cppfile.Value, lines, includefixer, include_regex, out newlines))
+                if (FixIncludeDirectives(basePath, cppFile.Value, lines, includeFixer, includeRegex, out var newLines))
 				{
-					// Write out all lines if there where any modifications
+					// Write out all lines if there were any modifications
 					if (!config.Settings.DryRun)
 					{
-						File.WriteAllLines(filepath, newlines);
+						File.WriteAllLines(filePath, newLines);
 					}
 				}
 			}
 
 			// For every header file that is not read-only fix their include directives
-			Action<string, string> fix_includedir = delegate (string rootpath, string relative_filepath)
-			{
-				if (Verbose)
-				{
-					Console.WriteLine("Processing header file ... \"{0}\"", relative_filepath);
-				}
+            void FixIncludeDirectory(string rootPath, string relativeFilepath)
+            {
+                if (Verbose)
+                {
+                    Console.WriteLine("Processing header file ... \"{0}\"", relativeFilepath);
+                }
 
-				//   Read in all lines
-				List<string> outlines = new List<string>();
-				string filepath = FixPath(Path.Combine(rootpath, relative_filepath));
-				string basepath = FixPath(Path.GetDirectoryName(relative_filepath));
-				string[] lines = File.ReadAllLines(filepath);
+                //   Read in all lines
+                var outlines = new List<string>();
+                var filepath = FixPath(Path.Combine(rootPath, relativeFilepath));
+                var basePath = FixPath(Path.GetDirectoryName(relativeFilepath));
+                var lines = File.ReadAllLines(filepath);
 
-				List<string> newlines;
-				if (FixIncludeDirectives(basepath, relative_filepath, lines, includefixer, include_regex, out newlines))
-				{
-					// Write out all lines if there where any modifications
-					if (!config.Settings.DryRun)
-					{
-						File.WriteAllLines(filepath, newlines);
-					}
-				}
-			};
-			includefixer.ForeachHeaderFileThatNeedIncludeDirFix(fix_includedir);
+                if (FixIncludeDirectives(basePath, relativeFilepath, lines, includeFixer, includeRegex, out var newlines))
+                {
+                    // Write out all lines if there were any modifications
+                    if (!config.Settings.DryRun)
+                    {
+                        File.WriteAllLines(filepath, newlines);
+                    }
+                }
+            }
+
+            includeFixer.ForeachHeaderFileThatNeedIncludeDirFix(FixIncludeDirectory);
 
 
 			// For every header file that is not read-only fix their include guards
-			Regex includeguard_ifndef = new Regex("\\s*#\\s*ifndef\\s*([ ])([^ ;/]+)", RegexOptions.Compiled);
-			Regex includeguard_define = new Regex("\\s*#\\s*define\\s*([ ])([^ ;/]+)", RegexOptions.Compiled);
+			var includeGuardIfNotDefined = new Regex("\\s*#\\s*ifndef\\s*([ ])([^ ;/]+)", RegexOptions.Compiled);
+			var includeGuardDefine = new Regex("\\s*#\\s*define\\s*([ ])([^ ;/]+)", RegexOptions.Compiled);
 
-			Action<string, string, string> fix_includeguard = delegate (string rootpath, string relative_filepath, string includeguard_prefix)
-			{
-				if (Verbose)
-				{
-					Console.WriteLine("Processing header file ... \"{0}\"", relative_filepath);
-				}
+            void IncludeGuard(string rootPath, string relativeFilepath, string includeGuardPrefix)
+            {
+                if (Verbose)
+                {
+                    Console.WriteLine("Processing header file ... \"{0}\"", relativeFilepath);
+                }
 
-				//   Read in all lines
-				List<string> outlines = new List<string>();
-				string filepath = FixPath(Path.Combine(rootpath, relative_filepath));
-				string basepath = FixPath(Path.GetDirectoryName(relative_filepath));
-				string[] lines = File.ReadAllLines(filepath);
+                //   Read in all lines
+                var outlines = new List<string>();
+                var filepath = FixPath(Path.Combine(rootPath, relativeFilepath));
+                var basePath = FixPath(Path.GetDirectoryName(relativeFilepath));
+                var lines = File.ReadAllLines(filepath);
 
-				List<string> newlines;
-				if (FixIncludeGuard(basepath, relative_filepath, includeguard_prefix, lines, includefixer, includeguard_ifndef, includeguard_define, out newlines))
-				{
-					// Write out all lines if there where any modifications
-					if (!config.Settings.DryRun)
-					{
-						File.WriteAllLines(filepath, newlines);
-					}
-				}
-			};
-			includefixer.ForeachHeaderFileThatNeedIncludeGuardFix(fix_includeguard);
+                if (FixIncludeGuard(basePath, relativeFilepath, includeGuardPrefix, lines, includeFixer, includeGuardIfNotDefined, includeGuardDefine, out var newlines))
+                {
+                    // Write out all lines if there were any modifications
+                    if (!config.Settings.DryRun)
+                    {
+                        File.WriteAllLines(filepath, newlines);
+                    }
+                }
+            }
+
+            includeFixer.ForeachHeaderFileThatNeedIncludeGuardFix(IncludeGuard);
 
 
 
 			if (config.Settings.Log)
 			{
-				logwriter.Close();
-				logfile.Close();
+				logWriter.Close();
+				logFile.Close();
 			}
 			Console.SetOut(writers[0]);
 
@@ -172,76 +166,76 @@ namespace IncludeFixor
 		//
 		// Where "Collision.h" also exists in the root, we need to actually get the "Collision.h" that exists in his own folder.
 
-		static bool FixIncludeDirectives(string basepath, string filename, string[] lines, IncludeFixer includes, Regex include_regex, out List<string> outlines)
+		static bool FixIncludeDirectives(string basepath, string filename, string[] lines, IncludeFixer includes, Regex includeRegex, out List<string> outlines)
 		{
 			outlines = new List<string>();
 
-			int number_of_modified_lines = 0;
-			int line_number = 0;
+			var numberOfModifiedLines = 0;
+			var lineNumber = 0;
 
-			foreach (string original_line in lines)
+			foreach (var originalLine in lines)
 			{
 				//   Analyze line for  #include "
-				bool line_is_modified = false;
-				string modified_line = original_line;
+				var lineIsModified = false;
+				var modifiedLine = originalLine;
 
-				Match regex_match = include_regex.Match(original_line);
-				if (regex_match.Success)
+				var regexMatch = includeRegex.Match(originalLine);
+				if (regexMatch.Success)
 				{
-					var groups = regex_match.Groups;
+					var groups = regexMatch.Groups;
 					if (groups.Count == 4 && groups[1].Value == "\"" && groups[3].Value == "\"")
 					{
-						string include_hdr = groups[2].Value.Trim();
-						if (includes.FindInclude(basepath, include_hdr, out string relative_include_hdr))
+						var includeHdr = groups[2].Value.Trim();
+						if (includes.FindInclude(basepath, includeHdr, out var relativeIncludeHdr))
 						{
-							relative_include_hdr = FixPath(relative_include_hdr);
+							relativeIncludeHdr = FixPath(relativeIncludeHdr);
 
 							const bool ignoreCase = true;
-							line_is_modified = String.Compare(include_hdr, relative_include_hdr, ignoreCase) != 0;
-							if (line_is_modified)
+							lineIsModified = String.Compare(includeHdr, relativeIncludeHdr, ignoreCase) != 0;
+							if (lineIsModified)
 							{
-								modified_line = original_line.Replace(include_hdr, relative_include_hdr);
+								modifiedLine = originalLine.Replace(includeHdr, relativeIncludeHdr);
 								if (Verbose)
 								{
-									Console.WriteLine("    changed:\"{0}\", line({1}): \"{2}\"  -->  \"{3}\".", filename, line_number, original_line, modified_line);
+									Console.WriteLine("    changed:\"{0}\", line({1}): \"{2}\"  -->  \"{3}\".", filename, lineNumber, originalLine, modifiedLine);
 								}
 							}
 						}
 						else
 						{
-							Console.WriteLine("    warning:\"{0}\", line({1}): Could not find matching include for \"{2}\".", filename, line_number, include_hdr);
+							Console.WriteLine("    warning:\"{0}\", line({1}): Could not find matching include for \"{2}\".", filename, lineNumber, includeHdr);
 						}
 					}
 				}
 
-				if (line_is_modified)
+				if (lineIsModified)
 				{
-					number_of_modified_lines += 1;
-					outlines.Add(modified_line);
+					numberOfModifiedLines += 1;
+					outlines.Add(modifiedLine);
 				}
 				else
 				{
-					outlines.Add(original_line);
+					outlines.Add(originalLine);
 				}
 
-				line_number += 1;
+				lineNumber += 1;
 			}
 
-			return number_of_modified_lines > 0;
+			return numberOfModifiedLines > 0;
 		}
 
 
-		static bool FixIncludeGuard(string basepath, string filename, string includeguard_prefix, string[] lines, IncludeFixer includes, Regex includeguard_ifndef, Regex includeguard_define, out List<string> outlines)
+		static bool FixIncludeGuard(string basepath, string filename, string includeguardPrefix, string[] lines, IncludeFixer includes, Regex includeguardIfndef, Regex includeguardDefine, out List<string> outlines)
 		{
 			outlines = new List<string>();
 
-			int i= 0;
-			int number_of_modified_lines = 0;
+			var i= 0;
+			var numberOfModifiedLines = 0;
 
 			// Skip empty and comment lines at the top of the file
 			while (i < lines.Length)
 			{
-				string line = lines[i];
+				var line = lines[i];
 				line = line.Trim();
 				if (line == "" || line.StartsWith("//") || line.StartsWith(";"))
 				{
@@ -255,40 +249,40 @@ namespace IncludeFixor
 
 			if (lines.Length >= (i + 2))
 			{
-				Match ifndef_match = includeguard_ifndef.Match(lines[i]);
-				if (ifndef_match.Success)
+				var ifndefMatch = includeguardIfndef.Match(lines[i]);
+				if (ifndefMatch.Success)
 				{
-					Match define_match = includeguard_define.Match(lines[i+1]);
-					if (define_match.Success)
+					var defineMatch = includeguardDefine.Match(lines[i+1]);
+					if (defineMatch.Success)
 					{
-						var ifndef_groups = ifndef_match.Groups;
-						var define_groups = define_match.Groups;
-						if (ifndef_groups.Count >= 2 && define_groups.Count >= 2)
+						var ifndefGroups = ifndefMatch.Groups;
+						var defineGroups = defineMatch.Groups;
+						if (ifndefGroups.Count >= 2 && defineGroups.Count >= 2)
 						{
-							string ifndef_symbol = ifndef_groups[2].Value.Trim();
-							string define_symbol = define_groups[2].Value.Trim();
-							if (ifndef_symbol == define_symbol)
+							var ifndefSymbol = ifndefGroups[2].Value.Trim();
+							var defineSymbol = defineGroups[2].Value.Trim();
+							if (ifndefSymbol == defineSymbol)
 							{
 								// Ok we have found an include guard like this:
 								// #ifndef __SYMBOL__
 								// #define __SYMBOL__
-								outlines.Add(lines[i].Replace(ifndef_symbol, includeguard_prefix + ifndef_symbol));
-								outlines.Add(lines[i+1].Replace(ifndef_symbol, includeguard_prefix + ifndef_symbol));
+								outlines.Add(lines[i].Replace(ifndefSymbol, includeguardPrefix + ifndefSymbol));
+								outlines.Add(lines[i+1].Replace(ifndefSymbol, includeguardPrefix + ifndefSymbol));
 								i += 2;
-								number_of_modified_lines = 2;
+								numberOfModifiedLines = 2;
 							}
 						}
 					}
 				}
 			}
-			
+
 			// Copy lines to out, but when we have replaced the include guard start after those 2 lines
 			for (; i < lines.Length; ++i)
 			{
 				outlines.Add(lines[i]);
 			}
 
-			return number_of_modified_lines > 0;
+			return numberOfModifiedLines > 0;
 		}
 
 
@@ -299,14 +293,14 @@ namespace IncludeFixor
 			return filepath;
 		}
 
-		static char OtherPathSeperator(char path_seperator)
+		static char OtherPathSeperator(char pathSeperator)
 		{
-			switch (path_seperator)
+			switch (pathSeperator)
 			{
 				case '/': return '\\';
 				case '\\': return '/';
 			}
-			return path_seperator;
+			return pathSeperator;
 		}
 		static private string FixPath(string filepath)
 		{
@@ -314,20 +308,20 @@ namespace IncludeFixor
 			return filepath;
 		}
 
-		static void GlobAllSourceFiles(string root, char path_seperator, List<KeyValuePair<string, string>> all_source_files, params string[] extensions)
+		static void GlobAllSourceFiles(string root, char pathSeperator, List<KeyValuePair<string, string>> allSourceFiles, params string[] extensions)
 		{
 			var rootdirinfo = new DirectoryInfo(root);
-			char old_path_seperator = OtherPathSeperator(path_seperator);
+			var oldPathSeperator = OtherPathSeperator(pathSeperator);
 
-			foreach (string ext in extensions)
+			foreach (var ext in extensions)
 			{
 				var globbed = rootdirinfo.GlobFiles("**/" + ext);
-				foreach (FileInfo fi in globbed)
+				foreach (var fi in globbed)
 				{
-					string filepath = MakeRelative(root, fi.FullName);
-					filepath = filepath.Replace(old_path_seperator, path_seperator);
+					var filepath = MakeRelative(root, fi.FullName);
+					filepath = filepath.Replace(oldPathSeperator, pathSeperator);
 					filepath = FixPath(filepath);
-					all_source_files.Add(new KeyValuePair<string, string>(root, filepath));
+					allSourceFiles.Add(new KeyValuePair<string, string>(root, filepath));
 				}
 			}
 		}

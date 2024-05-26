@@ -10,9 +10,6 @@
 !*.inc
 !*.inline
 
-!*.dtp
-!*.dtpinc
-
 !*.go
 !*.lua
 !*.json
@@ -22,7 +19,7 @@
 
 !*.cs
 !*.csproj
-!*.resx
+!*.sln
 
 !*.hlsl
 !*.fragment
@@ -33,5 +30,6 @@
 
 # ignore the following folders
 /.vs/
+/target/
 /IncludeFixor/bin/
 /IncludeFixor/obj/

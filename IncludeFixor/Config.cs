@@ -98,7 +98,7 @@ namespace IncludeFixor
     {
         private static Config FromJson(string json)
         {
-            return JsonConvert.DeserializeObject<Config>(json, IncludeFixor.Converter.Settings);
+            return JsonConvert.DeserializeObject<Config>(json, IncludeFixor.Converter.sSettings);
         }
 
         public static bool Read(string filepath, out Config config)
@@ -109,7 +109,7 @@ namespace IncludeFixor
             {
                 try
                 {
-                    string json = File.ReadAllText(filepath);
+                    var json = File.ReadAllText(filepath);
                     config = FromJson(json);
                 }
                 catch(Exception e)
@@ -126,17 +126,17 @@ namespace IncludeFixor
     {
         public static string ToJson(this Config self)
         {
-            return JsonConvert.SerializeObject(self, IncludeFixor.Converter.Settings);
+            return JsonConvert.SerializeObject(self, IncludeFixor.Converter.sSettings);
         }
     }
 
     internal class Converter
     {
-        public static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
+        public static readonly JsonSerializerSettings sSettings = new JsonSerializerSettings
         {
             MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
             DateParseHandling = DateParseHandling.None,
-            Converters = { 
+            Converters = {
                 new IsoDateTimeConverter { DateTimeStyles = DateTimeStyles.AssumeUniversal }
             },
         };

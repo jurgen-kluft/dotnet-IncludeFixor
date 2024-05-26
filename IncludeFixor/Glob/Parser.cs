@@ -88,13 +88,13 @@ namespace Glob
         private StringWildcard ParseWildcard()
         {
             this.Accept(TokenKind.Wildcard);
-            return StringWildcard.Default;
+            return StringWildcard.sDefault;
         }
 
         private CharacterWildcard ParseCharacterWildcard()
         {
             this.Accept(TokenKind.CharacterWildcard);
-            return CharacterWildcard.Default;
+            return CharacterWildcard.sDefault;
         }
 
         // SubSegment := Identifier | CharacterSet | LiteralSet | CharacterWildcard | Wildcard
@@ -127,7 +127,7 @@ namespace Glob
             if (this._currentToken.Kind == TokenKind.DirectoryWildcard)
             {
                 this.AcceptIt();
-                return DirectoryWildcard.Default;
+                return DirectoryWildcard.sDefault;
             }
 
             return ParseDirectorySegment();
@@ -196,7 +196,7 @@ namespace Glob
                 items.Add(this.ParseSegment());
             }
 
-            if (_currentToken.Kind != TokenKind.EOT)
+            if (_currentToken.Kind != TokenKind.Eot)
                 items.Add(this.ParseSegment());
 
             return new Tree(items);
@@ -225,7 +225,7 @@ namespace Glob
                     throw new InvalidOperationException("Expected Tree, found: " + _currentToken.Kind);
             }
 
-            this.Accept(TokenKind.EOT);
+            this.Accept(TokenKind.Eot);
             return path;
         }
 

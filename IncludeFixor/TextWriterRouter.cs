@@ -9,16 +9,16 @@ namespace IncludeFixor
 	/// </summary>
 	class TextWriterRouter : System.IO.TextWriter
 	{
-		private System.Collections.Generic.List<System.IO.TextWriter> writers = new System.Collections.Generic.List<System.IO.TextWriter>();
-		private System.IFormatProvider formatProvider = null;
-		private System.Text.Encoding encoding = null;
+		private System.Collections.Generic.List<System.IO.TextWriter> _writers = new System.Collections.Generic.List<System.IO.TextWriter>();
+		private System.IFormatProvider _formatProvider = null;
+		private System.Text.Encoding _encoding = null;
 
 		#region TextWriter Properties
 		public override System.IFormatProvider FormatProvider
 		{
 			get
 			{
-				System.IFormatProvider formatProvider = this.formatProvider;
+				var formatProvider = this._formatProvider;
 				if (formatProvider == null)
 				{
 					formatProvider = base.FormatProvider;
@@ -33,7 +33,7 @@ namespace IncludeFixor
 
 			set
 			{
-				foreach (System.IO.TextWriter writer in this.writers)
+				foreach (var writer in this._writers)
 				{
 					writer.NewLine = value;
 				}
@@ -47,7 +47,7 @@ namespace IncludeFixor
 		{
 			get
 			{
-				System.Text.Encoding encoding = this.encoding;
+				var encoding = this._encoding;
 
 				if (encoding == null)
 				{
@@ -62,13 +62,13 @@ namespace IncludeFixor
 
 		TextWriterRouter SetFormatProvider(System.IFormatProvider value)
 		{
-			this.formatProvider = value;
+			this._formatProvider = value;
 			return this;
 		}
 
 		TextWriterRouter SetEncoding(System.Text.Encoding value)
 		{
-			this.encoding = value;
+			this._encoding = value;
 			return this;
 		}
 		#endregion // TextWriter Property Setters
@@ -86,19 +86,19 @@ namespace IncludeFixor
 		#region Public interface
 		public TextWriterRouter Clear()
 		{
-			this.writers.Clear();
+			this._writers.Clear();
 			return this;
 		}
 
 		public TextWriterRouter AddWriter(System.IO.TextWriter writer)
 		{
-			this.writers.Add(writer);
+			this._writers.Add(writer);
 			return this;
 		}
 
 		public TextWriterRouter AddWriters(System.Collections.Generic.IEnumerable<System.IO.TextWriter> writers)
 		{
-			this.writers.AddRange(writers);
+			this._writers.AddRange(writers);
 			return this;
 		}
 		#endregion // Public interface
@@ -107,7 +107,7 @@ namespace IncludeFixor
 
 		public override void Close()
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Close();
 			}
@@ -116,7 +116,7 @@ namespace IncludeFixor
 
 		protected override void Dispose(bool disposing)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				if (disposing)
 				{
@@ -128,7 +128,7 @@ namespace IncludeFixor
 
 		public override void Flush()
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Flush();
 			}
@@ -142,7 +142,7 @@ namespace IncludeFixor
 		//}
 		public override void Write(bool value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -150,7 +150,7 @@ namespace IncludeFixor
 
 		public override void Write(char value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -158,7 +158,7 @@ namespace IncludeFixor
 
 		public override void Write(char[] buffer)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(buffer);
 			}
@@ -166,7 +166,7 @@ namespace IncludeFixor
 
 		public override void Write(decimal value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -174,7 +174,7 @@ namespace IncludeFixor
 
 		public override void Write(double value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -182,7 +182,7 @@ namespace IncludeFixor
 
 		public override void Write(float value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -190,7 +190,7 @@ namespace IncludeFixor
 
 		public override void Write(int value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -198,7 +198,7 @@ namespace IncludeFixor
 
 		public override void Write(long value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -206,7 +206,7 @@ namespace IncludeFixor
 
 		public override void Write(object value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -214,7 +214,7 @@ namespace IncludeFixor
 
 		public override void Write(string value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -222,7 +222,7 @@ namespace IncludeFixor
 
 		public override void Write(uint value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -230,7 +230,7 @@ namespace IncludeFixor
 
 		public override void Write(ulong value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(value);
 			}
@@ -238,7 +238,7 @@ namespace IncludeFixor
 
 		public override void Write(string format, object arg0)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(format, arg0);
 			}
@@ -247,7 +247,7 @@ namespace IncludeFixor
 
 		public override void Write(string format, params object[] arg)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(format, arg);
 			}
@@ -255,7 +255,7 @@ namespace IncludeFixor
 
 		public override void Write(char[] buffer, int index, int count)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(buffer, index, count);
 			}
@@ -263,7 +263,7 @@ namespace IncludeFixor
 
 		public override void Write(string format, object arg0, object arg1)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(format, arg0, arg1);
 			}
@@ -271,7 +271,7 @@ namespace IncludeFixor
 
 		public override void Write(string format, object arg0, object arg1, object arg2)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.Write(format, arg0, arg1, arg2);
 			}
@@ -279,7 +279,7 @@ namespace IncludeFixor
 
 		public override void WriteLine()
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine();
 			}
@@ -287,7 +287,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(bool value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -295,7 +295,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(char value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -303,7 +303,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(char[] buffer)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(buffer);
 			}
@@ -311,7 +311,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(decimal value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -319,7 +319,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(double value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -327,7 +327,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(float value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -335,7 +335,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(int value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -343,7 +343,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(long value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -351,7 +351,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(object value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -359,7 +359,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(string value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -367,7 +367,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(uint value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -375,7 +375,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(ulong value)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(value);
 			}
@@ -383,7 +383,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(string format, object arg0)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(format, arg0);
 			}
@@ -391,7 +391,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(string format, params object[] arg)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(format, arg);
 			}
@@ -399,7 +399,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(char[] buffer, int index, int count)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(buffer, index, count);
 			}
@@ -407,7 +407,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(string format, object arg0, object arg1)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(format, arg0, arg1);
 			}
@@ -415,7 +415,7 @@ namespace IncludeFixor
 
 		public override void WriteLine(string format, object arg0, object arg1, object arg2)
 		{
-			foreach (System.IO.TextWriter writer in this.writers)
+			foreach (var writer in this._writers)
 			{
 				writer.WriteLine(format, arg0, arg1, arg2);
 			}
