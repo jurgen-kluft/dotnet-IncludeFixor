@@ -139,6 +139,8 @@ namespace IncludeFixor
                 Console.WriteLine("");
                 return -1;
             }
+            // Fix all the paths and separators
+            config.Fixup();
 
             Verbose = config.Settings.Verbose;
             PathSeparator = config.Settings.PathSeparator;
@@ -224,10 +226,8 @@ namespace IncludeFixor
             includeFixer.ForeachHeaderFileThatNeedIncludeDirFix(FixIncludeDirectory);
 
             // For every header file that is not read-only fix their include guards
-            var includeGuardIfNotDefined = new Regex("\\s*#\\s*ifndef\\s*([ ])([^ ;/]+)", RegexOptions.Compiled);
-            var includeGuardDefine = new Regex("\\s*#\\s*define\\s*([ ])([^ ;/]+)", RegexOptions.Compiled);
 
-            void IncludeGuard(string rootPath, string relativeFilepath, string includeGuardPrefix)
+            void IncludeGuard(string rootPath, string relativeFilepath, bool verbose, IncludeGuards guards)
             {
                 CConsole.WriteLine("Processing header file ... \"{0}\"", relativeFilepath);
 
@@ -237,7 +237,8 @@ namespace IncludeFixor
                 var basePath = FixPath(Path.GetDirectoryName(relativeFilepath));
                 var lines = File.ReadAllLines(filepath);
 
-                if (FixIncludeGuard(basePath, relativeFilepath, includeGuardPrefix, lines, includeFixer, includeGuardIfNotDefined, includeGuardDefine, out var newlines))
+                var numberOfModifiedLines = FixIncludeGuard(basePath, relativeFilepath, lines, includeFixer, guards, verbose, out var newlines);
+                if (numberOfModifiedLines > 0)
                 {
                     // Write out all lines if there were any modifications
                     if (!config.Settings.DryRun)
@@ -245,9 +246,13 @@ namespace IncludeFixor
                         File.WriteAllLines(filepath, newlines);
                     }
                 }
+                else
+                {
+                    CConsole.Info($"       Didn't modify include guards for header file ... \"{relativeFilepath}\"");
+                }
             }
 
-            includeFixer.ForeachHeaderFileThatNeedIncludeGuardFix(IncludeGuard);
+            includeFixer.ForeachHeaderFileThatNeedIncludeGuardFix(config.Settings.Verbose, IncludeGuard);
 
             if (config.Settings.Log)
             {
@@ -258,7 +263,7 @@ namespace IncludeFixor
             return 0;
         }
 
-        // File being process can have it's own base-path:
+        // File being process can have its own base-path:
         // Example:
         //  - Physics/Broadphase.cpp
         //    If this file has the following includes:
@@ -326,21 +331,36 @@ namespace IncludeFixor
         }
 
 
-        static bool FixIncludeGuard(string basePath, string filename, string includeGuardPrefix, string[] lines, IncludeFixer includes, Regex includeGuardIfNotDefined, Regex includeGuardDefine, out List<string> outlines)
+        static int FixIncludeGuard(string basePath, string filename, string[] lines, IncludeFixer includes, IncludeGuards guards, bool verbose, out List<string> outlines)
         {
-            outlines = new List<string>();
+            outlines = new List<string>(lines.Length + 16);
 
             var i = 0;
             var numberOfModifiedLines = 0;
 
             // Skip empty and comment lines at the top of the file
+            var line = string.Empty;
             while (i < lines.Length)
             {
-                var line = lines[i];
+                line = lines[i];
                 line = line.Trim();
                 if (line == "" || line.StartsWith("//") || line.StartsWith(";"))
                 {
                     i += 1;
+                }
+                else if (line.StartsWith("/*"))
+                {
+                    // Iterate here until we find the closing "*/"
+                    i += 1;
+                    while (i++ < lines.Length)
+                    {
+                        line = lines[i];
+                        line = line.Trim();
+                        if (!line.EndsWith("*/")) continue;
+
+                        ++i;
+                        break;
+                    }
                 }
                 else
                 {
@@ -348,32 +368,52 @@ namespace IncludeFixor
                 }
             }
 
-            if (lines.Length >= (i + 2))
+            // TODO Should we replace "#pragma once" statements and replace it with an include guard ?
+            if (!line.Contains("#pragma once"))
             {
-                var ifNotDefinedMatch = includeGuardIfNotDefined.Match(lines[i]);
-                if (ifNotDefinedMatch.Success)
+
+                if (lines.Length >= (i + 2))
                 {
-                    var defineMatch = includeGuardDefine.Match(lines[i + 1]);
-                    if (defineMatch.Success)
+                    var ifNotDefinedMatch = guards.IncludeGuardIfNotDefined.Match(lines[i]);
+                    if (ifNotDefinedMatch.Success)
                     {
-                        var ifNotDefinedGroups = ifNotDefinedMatch.Groups;
-                        var defineGroups = defineMatch.Groups;
-                        if (ifNotDefinedGroups.Count >= 2 && defineGroups.Count >= 2)
+                        var defineMatch = guards.IncludeGuardDefine.Match(lines[i + 1]);
+                        if (defineMatch.Success)
                         {
-                            var ifNotDefinedSymbol = ifNotDefinedGroups[2].Value.Trim();
-                            var defineSymbol = defineGroups[2].Value.Trim();
-                            if (ifNotDefinedSymbol == defineSymbol)
+                            var ifNotDefinedGroups = ifNotDefinedMatch.Groups;
+                            var defineGroups = defineMatch.Groups;
+                            if (ifNotDefinedGroups.Count >= 2 && defineGroups.Count >= 2)
                             {
-                                // Ok we have found an include guard, something like:
-                                // #ifndef __SYMBOL__
-                                // #define __SYMBOL__
-                                outlines.Add(lines[i].Replace(ifNotDefinedSymbol, includeGuardPrefix + ifNotDefinedSymbol));
-                                outlines.Add(lines[i + 1].Replace(ifNotDefinedSymbol, includeGuardPrefix + ifNotDefinedSymbol));
-                                i += 2;
-                                numberOfModifiedLines = 2;
+                                var ifNotDefinedSymbol = ifNotDefinedGroups[2].Value.Trim();
+                                var defineSymbol = defineGroups[2].Value.Trim();
+                                if (ifNotDefinedSymbol == defineSymbol)
+                                {
+                                    // Ok we have found an include guard, something like:
+                                    // #ifndef __SYMBOL__
+                                    // #define __SYMBOL__
+                                    var newIncludeGuardSymbol = guards.HandleIncludeGuard(ifNotDefinedSymbol, filename);
+
+                                    if (verbose)
+                                    {
+                                        CConsole.WriteLine("    changed:\"{0}\", line({1}): \"{2}\"  -->  \"{3}\".", filename, i, lines[i], lines[i].Replace(ifNotDefinedSymbol, newIncludeGuardSymbol));
+                                        CConsole.WriteLine("    changed:\"{0}\", line({1}): \"{2}\"  -->  \"{3}\".", filename, i + 1, lines[i + 1], lines[i + 1].Replace(ifNotDefinedSymbol, newIncludeGuardSymbol));
+                                    }
+
+                                    outlines.Add(lines[i].Replace(ifNotDefinedSymbol, newIncludeGuardSymbol));
+                                    outlines.Add(lines[i + 1].Replace(ifNotDefinedSymbol, newIncludeGuardSymbol));
+                                    i += 2;
+                                    numberOfModifiedLines = 2;
+                                }
                             }
                         }
                     }
+                }
+            }
+            else
+            {
+                if (verbose)
+                {
+                    CConsole.Info($"    header file has a #pragma once directive, skipping include guard modification for header file ... \"{filename}\"");
                 }
             }
 
@@ -383,7 +423,7 @@ namespace IncludeFixor
                 outlines.Add(lines[i]);
             }
 
-            return numberOfModifiedLines > 0;
+            return numberOfModifiedLines;
         }
 
 

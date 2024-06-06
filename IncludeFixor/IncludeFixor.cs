@@ -310,7 +310,7 @@ namespace IncludeFixor
 				}
 			}
 		}
-		public void ForeachHeaderFileThatNeedIncludeGuardFix(Action<string, string, string> action)
+		public void ForeachHeaderFileThatNeedIncludeGuardFix(bool verbose, Action<string, string, bool, IncludeGuards> action)
 		{
 			foreach (var include in _mIncludes)
 			{
@@ -321,7 +321,7 @@ namespace IncludeFixor
 					{
                         if (!File.Exists(Path.Join(include.Include.ScannerPath, hdr)))
                             continue;
-						action(include.Include.ScannerPath, hdr, includeGuardPrefix);
+						action(include.Include.ScannerPath, hdr, verbose, include.Include.IncludeGuards);
 					}
 				}
 			}
