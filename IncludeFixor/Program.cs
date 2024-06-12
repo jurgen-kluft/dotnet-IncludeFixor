@@ -21,6 +21,21 @@ namespace IncludeFixor
             }
         }
 
+        public static void Write(string value, Color color)
+        {
+            var prevColor = AnsiConsole.Foreground;
+            AnsiConsole.Foreground = color;
+            AnsiConsole.Write(value);
+
+            AnsiConsole.Write(value);
+            foreach (var writer in sWriters)
+            {
+                writer.Write(value);
+            }
+
+            AnsiConsole.Foreground = prevColor;
+        }
+
         public static void WriteLine(string value)
         {
             AnsiConsole.WriteLine(value);
@@ -28,6 +43,19 @@ namespace IncludeFixor
             {
                 writer.WriteLine(value);
             }
+        }
+
+        public static void WriteLine(string value, Color color)
+        {
+            var prevColor = AnsiConsole.Foreground;
+            AnsiConsole.Foreground = color;
+            AnsiConsole.WriteLine(value);
+            foreach (var writer in sWriters)
+            {
+                writer.WriteLine(value);
+            }
+
+            AnsiConsole.Foreground = prevColor;
         }
 
         public static void WriteLine(string format, params object[] args)
@@ -110,7 +138,6 @@ namespace IncludeFixor
                 writer.WriteLine(value, args);
             }
         }
-
     }
 
     class Program
@@ -139,6 +166,7 @@ namespace IncludeFixor
                 Console.WriteLine("");
                 return -1;
             }
+
             // Fix all the paths and separators
             config.Fixup();
 
@@ -204,7 +232,8 @@ namespace IncludeFixor
             // For every header file that is not read-only fix their include directives
             void FixIncludeDirectory(string rootPath, string relativeFilepath)
             {
-                CConsole.WriteLine("Processing header file ... \"{0}\"", relativeFilepath);
+                CConsole.Write("Processing header file ... ");
+                CConsole.WriteLine($"\"{relativeFilepath}\"", Color.Green);
 
                 //   Read in all lines
                 var outlines = new List<string>();
@@ -229,7 +258,8 @@ namespace IncludeFixor
 
             void IncludeGuard(string rootPath, string relativeFilepath, bool verbose, IncludeGuards guards)
             {
-                CConsole.WriteLine("Processing header file ... \"{0}\"", relativeFilepath);
+                CConsole.Write("Processing header file ... ");
+                CConsole.WriteLine($"\"{relativeFilepath}\"", Color.Green);
 
                 //   Read in all lines
                 var outlines = new List<string>();
@@ -276,6 +306,7 @@ namespace IncludeFixor
         {
             outlines = new List<string>();
 
+            const int minFuzzyMatchingScore = 95;
             var numberOfModifiedLines = 0;
             var lineNumber = 0;
 
@@ -292,18 +323,34 @@ namespace IncludeFixor
                     if (groups.Count == 4 && groups[1].Value == "\"" && groups[3].Value == "\"")
                     {
                         var includeHdr = groups[2].Value.Trim();
-                        if (includes.FindInclude(basePath, includeHdr, out var relativeIncludeHdr))
+
+                        if (includes.FindIncludeDirect(basePath, includeHdr, out var relativeIncludeHdr))
                         {
                             relativeIncludeHdr = FixPath(relativeIncludeHdr);
 
                             const bool ignoreCase = true;
-                            lineIsModified = String.Compare(includeHdr, relativeIncludeHdr, ignoreCase) != 0;
+                            lineIsModified = string.Compare(includeHdr, relativeIncludeHdr, ignoreCase) != 0;
                             if (lineIsModified)
                             {
                                 modifiedLine = originalLine.Replace(includeHdr, relativeIncludeHdr);
                                 if (Verbose)
                                 {
-                                    CConsole.WriteLine("    changed:\"{0}\", line({1}): \"{2}\"  -->  \"{3}\".", filename, lineNumber, originalLine, modifiedLine);
+                                    CConsole.WriteLine("    changed:\"{0}\", line({1}): {2}  -->  {3}", filename, lineNumber, originalLine, modifiedLine);
+                                }
+                            }
+                        }
+                        else if (minFuzzyMatchingScore < 100 && includes.FindIncludeFuzzy(basePath, includeHdr, minFuzzyMatchingScore, out relativeIncludeHdr))
+                        {
+                            relativeIncludeHdr = FixPath(relativeIncludeHdr);
+
+                            const bool ignoreCase = true;
+                            lineIsModified = string.Compare(includeHdr, relativeIncludeHdr, ignoreCase) != 0;
+                            if (lineIsModified)
+                            {
+                                modifiedLine = originalLine.Replace(includeHdr, relativeIncludeHdr);
+                                if (Verbose)
+                                {
+                                    CConsole.WriteLine("    changed:\"{0}\", line({1}): {2}  -->  {3}  (fuzzy match)", filename, lineNumber, originalLine, modifiedLine);
                                 }
                             }
                         }
@@ -371,7 +418,6 @@ namespace IncludeFixor
             // TODO Should we replace "#pragma once" statements and replace it with an include guard ?
             if (!line.Contains("#pragma once"))
             {
-
                 if (lines.Length >= (i + 2))
                 {
                     var ifNotDefinedMatch = guards.IncludeGuardIfNotDefined.Match(lines[i]);
@@ -413,7 +459,7 @@ namespace IncludeFixor
             {
                 if (verbose)
                 {
-                    CConsole.Info($"    header file has a #pragma once directive, skipping include guard modification for header file ... \"{filename}\"");
+                    CConsole.Warning($"    header file has a #pragma once directive, skipping include guard modification for header file ... \"{filename}\"");
                 }
             }
 

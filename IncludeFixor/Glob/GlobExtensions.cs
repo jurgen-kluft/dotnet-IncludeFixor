@@ -12,7 +12,8 @@ namespace Glob
         {
             var glob = new Glob(pattern, GlobOptions.Compiled);
             var truncateLength = di.FullName.Length + 1;
-
+            if (!di.Exists)
+                return Array.Empty<DirectoryInfo>();
             return di.EnumerateDirectories("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
         }
 
@@ -20,7 +21,8 @@ namespace Glob
         {
             var glob = new Glob(pattern, GlobOptions.Compiled);
             var truncateLength = di.FullName.Length + 1;
-
+            if (!di.Exists)
+                return Array.Empty<FileInfo>();
             return di.EnumerateFiles("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
         }
 
@@ -28,7 +30,8 @@ namespace Glob
         {
             var glob = new Glob(pattern, GlobOptions.Compiled);
             var truncateLength = di.FullName.Length + 1;
-
+            if (!di.Exists)
+                return Array.Empty<FileSystemInfo>();
             return di.EnumerateFileSystemInfos("*", SearchOption.AllDirectories).Where(info => glob.IsMatch(info.FullName.Remove(0, truncateLength)));
         }
     }

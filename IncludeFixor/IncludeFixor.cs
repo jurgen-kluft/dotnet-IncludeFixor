@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
+using FuzzySharp;
 using Glob;
 
 namespace IncludeFixor
@@ -40,9 +41,11 @@ namespace IncludeFixor
             {
                 return string.Compare(folderName, otherFolderName, StringComparison.OrdinalIgnoreCase) == 0;
             }
-            private static bool AreFileNamesEqual(string filename, string otherFilename)
+            private static bool AreFileNamesEqual(string filename, string otherFilename, int minFuzzyMatchingScore)
             {
-                return string.Compare(filename, otherFilename, StringComparison.OrdinalIgnoreCase) == 0;
+                if (string.Compare(filename, otherFilename, StringComparison.OrdinalIgnoreCase) == 0)
+                    return true;
+                return Fuzz.Ratio(filename, otherFilename) >= minFuzzyMatchingScore;
             }
 
             private bool IsFolderName(string folderName)
@@ -81,6 +84,7 @@ namespace IncludeFixor
                 {
                     Filenames.Add(part);
                     FilePaths.Add(fullheaderinclude);
+
                     return true;
                 }
                 else
@@ -104,12 +108,12 @@ namespace IncludeFixor
                 tree.AddHeaderFile(headerIncludeStack, storeHeaderFilePath);
             }
 
-            private bool TryGetFilename(string headerFilename, out string correctedHeaderFilename)
+            private bool TryGetFilename(string headerFilename, int minMatchingScore, out string correctedHeaderFilename)
             {
                 var index = 0;
                 foreach (var filename in Filenames)
                 {
-                    if (AreFileNamesEqual(headerFilename, filename))
+                    if (AreFileNamesEqual(headerFilename, filename, minMatchingScore))
                     {
                         correctedHeaderFilename = FilePaths[index];
                         return true;
@@ -133,29 +137,25 @@ namespace IncludeFixor
                 return false;
             }
 
-            private bool FindIncludeFile(Stack<string> headerinclude, out string correctedHeaderinclude)
+            private bool FindIncludeFile(Stack<string> headerinclude, int minFuzzyMatchingScore, out string correctedHeaderinclude)
             {
                 var part = headerinclude.Pop();
                 if (headerinclude.Count == 0)
                 {
-                    if (TryGetFilename(part, out correctedHeaderinclude))
-                    {
-                        return true;
-                    }
-                    return false;
+                    return TryGetFilename(part, minFuzzyMatchingScore, out correctedHeaderinclude);
                 }
                 else
                 {
                     if (TryGetFolder(part, out var folder))
                     {
-                        return folder.FindIncludeFile(headerinclude, out correctedHeaderinclude);
+                        return folder.FindIncludeFile(headerinclude, minFuzzyMatchingScore, out correctedHeaderinclude);
                     }
                 }
                 correctedHeaderinclude = string.Empty;
                 return false;
             }
 
-            public static bool FindIncludeFile(HeaderIncludeTree tree, string headerinclude, out string correctedHeaderinclude)
+            public static bool FindIncludeFile(HeaderIncludeTree tree, string headerinclude, int minFuzzyMatchingScore, out string correctedHeaderinclude)
             {
                 var headerIncludeStack = new Stack<string>();
                 var headerIncludeParts = headerinclude.Split('/');
@@ -164,11 +164,11 @@ namespace IncludeFixor
                     headerIncludeStack.Push(headerIncludeParts[i]);
 
                 correctedHeaderinclude = string.Empty;
-                return tree.FindIncludeFile(headerIncludeStack, out correctedHeaderinclude);
+                return tree.FindIncludeFile(headerIncludeStack, minFuzzyMatchingScore, out correctedHeaderinclude);
             }
         }
 
-        List<IncludeDirectory> _mIncludes = new();
+        private List<IncludeDirectory> mIncludes = new();
 
         private char PathSeparator { get; set; } = '/';
 
@@ -181,19 +181,19 @@ namespace IncludeFixor
                 HeaderFilenameDb = headerFilenameDb
             };
 
-            _mIncludes.Add(id);
+            mIncludes.Add(id);
             return id;
         }
         public bool AddFileRename(string includePath, string old, string current)
         {
-            foreach (var dir in _mIncludes)
+            foreach (var dir in mIncludes)
             {
                 if (dir.Include.IncludePath == includePath)
                 {
                     string stored;
-                    if (HeaderIncludeTree.FindIncludeFile(dir.HeaderIncludeTree, current, out stored))
+                    if (HeaderIncludeTree.FindIncludeFile(dir.HeaderIncludeTree, current, 100, out stored))
                     {
-                        if (!HeaderIncludeTree.FindIncludeFile(dir.HeaderIncludeTree, old, out stored))
+                        if (!HeaderIncludeTree.FindIncludeFile(dir.HeaderIncludeTree, old, 100, out stored))
                         {
                             // OK, current exists in the tree, which is correct, and old does not exist in the tree.
                             HeaderIncludeTree.AddHeaderFile(dir.HeaderIncludeTree, old, current);
@@ -208,7 +208,7 @@ namespace IncludeFixor
 
         public void AddFolderRename(string includePath, string original, string renamed)
         {
-            foreach(var dir in _mIncludes)
+            foreach(var dir in mIncludes)
             {
                 if (dir.Include.IncludePath == includePath)
                 {
@@ -285,7 +285,7 @@ namespace IncludeFixor
 		public void ForeachHeaderFile(Action<string, string> action)
 		{
 			//var hdrFiles = new List<string>();
-			foreach (var include in _mIncludes)
+			foreach (var include in mIncludes)
 			{
 				foreach (var hdr in include.HeaderFiles)
 				{
@@ -296,7 +296,7 @@ namespace IncludeFixor
 
 		public void ForeachHeaderFileThatNeedIncludeDirFix(Action<string, string> action)
 		{
-			foreach (var include in _mIncludes)
+			foreach (var include in mIncludes)
 			{
 				if (include.Include.ReadOnly == false)
 				{
@@ -312,7 +312,7 @@ namespace IncludeFixor
 		}
 		public void ForeachHeaderFileThatNeedIncludeGuardFix(bool verbose, Action<string, string, bool, IncludeGuards> action)
 		{
-			foreach (var include in _mIncludes)
+			foreach (var include in mIncludes)
 			{
 				if (include.Include.IncludeGuards != null && !String.IsNullOrEmpty(include.Include.IncludeGuards.Prefix))
 				{
@@ -327,40 +327,110 @@ namespace IncludeFixor
 			}
 		}
 
-		public bool FindInclude(string currentPath, string headerInclude, out string resultingHeaderInclude)
+        public bool FindIncludeDirect(string currentPath, string headerInclude, out string resultingHeaderInclude)
+        {
+            resultingHeaderInclude = "failure";
+
+            // Direct string matching
+            {
+                //   1) Try to find it relative to currentPath
+                var currentHeaderInclude = AsDictionaryKey(Path.Combine(currentPath, headerInclude));
+                foreach (var include in mIncludes)
+                {
+                    if (HeaderIncludeTree.FindIncludeFile(include.HeaderIncludeTree, currentHeaderInclude, 100, out resultingHeaderInclude))
+                    {
+                        resultingHeaderInclude = FixPath(resultingHeaderInclude);
+                        return true;
+                    }
+                }
+
+                //   2) Try to find it in every include path
+                currentHeaderInclude = AsDictionaryKey(headerInclude);
+                foreach (var include in mIncludes)
+                {
+                    if (HeaderIncludeTree.FindIncludeFile(include.HeaderIncludeTree, currentHeaderInclude, 100, out resultingHeaderInclude))
+                    {
+                        resultingHeaderInclude = FixPath(resultingHeaderInclude);
+                        return true;
+                    }
+                }
+            }
+
+            // Just try and find the header file by filename in the whole list of header files
+            {
+                //   3) Find the header file by direct name comparison
+                var currentHeaderInclude = AsDictionaryKey(Path.GetFileName(headerInclude));
+                foreach (var include in mIncludes)
+                {
+                    foreach (var hdr in include.HeaderFiles)
+                    {
+                        var otherHeaderInclude = AsDictionaryKey(Path.GetFileName(hdr));
+                        if (string.CompareOrdinal(otherHeaderInclude, currentHeaderInclude) == 0)
+                        {
+                            resultingHeaderInclude = FixPath(hdr);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // If nothing found report it as include-not-found
+            return false;
+        }
+
+        public bool FindIncludeFuzzy(string currentPath, string headerInclude, int minFuzzyMatchingScore,out string resultingHeaderInclude)
         {
             resultingHeaderInclude = headerInclude;
 
-            //   1) Try to find it relative to currentPath
-            var currentHeaderInclude = AsDictionaryKey(Path.Combine(currentPath, headerInclude));
-            foreach (var include in _mIncludes)
+            // Fuzzy string matching
             {
-                if (HeaderIncludeTree.FindIncludeFile(include.HeaderIncludeTree, currentHeaderInclude, out resultingHeaderInclude))
+                //   1) Try to find it relative to currentPath
+                var currentHeaderInclude = AsDictionaryKey(Path.Combine(currentPath, headerInclude));
+                foreach (var include in mIncludes)
                 {
-                    resultingHeaderInclude = FixPath(resultingHeaderInclude);
-                    return true;
+                    if (HeaderIncludeTree.FindIncludeFile(include.HeaderIncludeTree, currentHeaderInclude, minFuzzyMatchingScore, out resultingHeaderInclude))
+                    {
+                        resultingHeaderInclude = FixPath(resultingHeaderInclude);
+                        return true;
+                    }
+                }
+
+                //   2) Try to find it in every include path
+                currentHeaderInclude = AsDictionaryKey(headerInclude);
+                foreach (var include in mIncludes)
+                {
+                    if (HeaderIncludeTree.FindIncludeFile(include.HeaderIncludeTree, currentHeaderInclude, minFuzzyMatchingScore, out resultingHeaderInclude))
+                    {
+                        resultingHeaderInclude = FixPath(resultingHeaderInclude);
+                        return true;
+                    }
                 }
             }
 
-            //   2) Try to find it in every include path
-            currentHeaderInclude = AsDictionaryKey(headerInclude);
-            foreach (var include in _mIncludes)
+            // Just try and find the header file by filename in the whole list of header files
             {
-                if (HeaderIncludeTree.FindIncludeFile(include.HeaderIncludeTree, currentHeaderInclude, out resultingHeaderInclude))
+                //   3) Find the header file by fuzzy name comparison
+                var currentHeaderInclude = AsDictionaryKey(Path.GetFileName(headerInclude));
                 {
-                    resultingHeaderInclude = FixPath(resultingHeaderInclude);
-                    return true;
-                }
-            }
+                    resultingHeaderInclude = "fuzzy failure";
+                    var currentMaxScore = 0;
+                    foreach (var include in mIncludes)
+                    {
+                        foreach (var hdr in include.HeaderFiles)
+                        {
+                            var otherHeaderInclude = AsDictionaryKey(Path.GetFileName(hdr));
+                            if (string.IsNullOrEmpty(otherHeaderInclude))
+                                continue;
+                            var matchingScore = Fuzz.Ratio(currentHeaderInclude, otherHeaderInclude);
+                            if (matchingScore >= currentMaxScore)
+                            {
+                                currentMaxScore = matchingScore;
+                                resultingHeaderInclude = hdr;
+                            }
+                        }
+                    }
 
-            //   3) Find the header file by name to
-            currentHeaderInclude = AsDictionaryKey(Path.GetFileName(headerInclude));
-            foreach (var include in _mIncludes)
-            {
-                if (include.HeaderFilenameDb.TryGetValue(currentHeaderInclude, out var candidates))
-                {
-                    resultingHeaderInclude = FixPath(candidates[0]);
-                    return true;
+                    return (currentMaxScore >= minFuzzyMatchingScore);
                 }
             }
 
